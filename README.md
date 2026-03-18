@@ -1,6 +1,6 @@
 # Dotfiles
 
-Personal configuration files for Omarchy Linux (Hyprland-based Arch setup).
+Personal configuration files for Hyprland-based Arch setup.
 
 ## Installation
 
@@ -16,9 +16,9 @@ stow -t ~ .
 ## What's Included
 
 ### Hyprland (Window Manager)
-- `hypr/monitors.conf` - Display configuration (1.25x scaling)
+- `hypr/monitors.conf` - Display configuration 
 - `hypr/bindings.conf` - Custom keybindings for apps
-- `hypr/looknfeel.conf` - Window appearance (no gaps, minimal borders)
+- `hypr/looknfeel.conf` - Window appearance
 - `hypr/input.conf` - Spanish keyboard layout, touchpad settings
 
 ### Waybar (Status Bar)
@@ -36,18 +36,6 @@ stow -t ~ .
 
 ### Omarchy Customizations
 - `omarchy/themes/custom-bg/` - Custom theme with earthy colors
-
-## Usage
-
-After making changes to configs in this repo:
-```bash
-# Hyprland configs auto-reload on save
-# Waybar needs restart:
-omarchy-restart-waybar
-
-# Terminal needs restart:
-omarchy-restart-terminal
-```
 
 ## Laptop-Specific Settings
 
