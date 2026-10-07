@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "m19182.vpn",
+  "name": "VPN",
+  "version": "1.0.0",
+  "author": "m19182",
+  "license": "MIT",
+  "description": "Switch saved NetworkManager OpenVPN and WireGuard connections.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {"barWidget": "Panel.qml"},
+  "barWidget": {"displayName": "VPN", "category": "Network", "allowMultiple": false, "defaultSection": "right"}
+}
