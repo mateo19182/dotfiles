@@ -109,6 +109,25 @@ fi
 if has_profile agents; then
     printf '\n== agents\n'
     link "$DOTFILES_DIR/agents/claude/statusline-command.sh" "$HOME/.claude/statusline-command.sh"
+    # One global context file: Claude Code only reads ~/.claude/CLAUDE.md at user level.
+    link "$DOTFILES_DIR/agents/AGENTS.md" "$HOME/.claude/CLAUDE.md"
+    [[ -d "$HOME/.codex" ]] && link "$DOTFILES_DIR/agents/AGENTS.md" "$HOME/.codex/AGENTS.md"
+    # Claude Code skips AGENTS.md wherever a CLAUDE.md exists; load both. Merged
+    # into settings.json rather than linked, because other tools write there too.
+    if (( DRY_RUN )); then
+        printf 'Would set Claude Code to load CLAUDE.md and AGENTS.md\n'
+    else
+        python3 - "$HOME/.claude/settings.json" <<'PY'
+import json, os, sys
+path = sys.argv[1]
+settings = json.load(open(path)) if os.path.exists(path) else {}
+settings.setdefault("pluginConfigs", {})["cc-plugin-agents-md@builtin"] = {
+    "options": {"instructionFiles": "claude-md-and-agents-md"}}
+with open(path, "w") as f:
+    json.dump(settings, f, indent=2)
+    f.write("\n")
+PY
+    fi
     mapfile -t skills < <(find "$DOTFILES_DIR/agents/skills" -mindepth 2 -maxdepth 2 -type d | sort)
     # Replaced skill copies go to a state directory, not beside the link: an
     # agent would otherwise load <skill>.backup.<ts>/SKILL.md as a second skill.
