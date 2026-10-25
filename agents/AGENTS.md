@@ -12,3 +12,4 @@ Private context (about me, machines, access) lives outside this public repo; rea
 - Reply in my language (Spanish from Spain when I write Spanish).
 - Ask before anything that reaches another person: messages, emails, tickets, PR comments, deploys, shared or prod DB writes.
 - If I ask to be notified via Telegram, use: `hermes send -q --to telegram "<project>: <status>: <what to do>"`.
+- Never reboot, shut down or restart a machine, or stop long-running services or agents, unless my latest message says to. Earlier approval expires once you defer or change the plan; ask "ready to reboot — go?" and wait. Before a reboot, list running agents (herdr panes, recent Claude sessions) so I can save them.
