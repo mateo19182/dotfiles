@@ -20,13 +20,6 @@ STATE = Path('/home/mateo/.local/state/server-backup')
 MAX_AGE_HOURS = {'local': 8 * 24, 'cloud': 32 * 24}
 
 
-def held_items(state, target):
-    try:
-        return json.loads((state / (target + '-held.json')).read_text())
-    except (OSError, ValueError):
-        return []
-
-
 def decide_path(args, config):
     path = os.path.abspath(args.path)
     if not os.path.lexists(path):
@@ -41,8 +34,7 @@ def decide_path(args, config):
     item['choice'] = args.choice
     atomic_json(args.config, config)
     for target in ['local', 'cloud']:
-        held = [h for h in held_items(args.state, target) if h['path'] != path]
-        atomic_json(args.state / (target + '-held.json'), held)
+        atomic_json(args.state / (target + '-held.json'), Runner(config, args.state).held(target))
     roots, excluded = selection_plan(config, 'cloud')
     if args.choice == 'both' and is_excluded(path, roots, excluded):
         print('Note: a parent folder is local only, so this stays on the local drive.')
@@ -82,7 +74,7 @@ def main():
     # Choices only edit the config for the next run, so they work while a backup holds the lock.
     if args.command == 'held':
         for target in ['local', 'cloud']:
-            for item in held_items(args.state, target):
+            for item in Runner(config, args.state).held(target):
                 print(f'{target:5}  {item["bytes"]/1024**3:6.1f} GiB  {item["path"]}')
         return
     if args.command == 'decide':
@@ -178,7 +170,7 @@ def main():
                     if value.get('skipped_files'):
                         print(f'{target}: {value["skipped_files"]} unreadable files skipped; '
                               f'see {args.state / (target + "-skipped.txt")}')
-                held = held_items(args.state, target)
+                held = Runner(config, args.state).held(target)
                 if held:
                     print(f'{target}: {len(held)} new items held back until decided (server-backup held)')
                 error_file = args.state / (target + '-error.json')

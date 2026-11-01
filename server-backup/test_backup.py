@@ -209,27 +209,33 @@ class RecoveryTest(unittest.TestCase):
                 Runner(config, root/'state').restic('local', ['init'], writable=True)
             backup()
             self.assertIn(str(root/'moved'), sent[-1])
+            new = source/'new [87 bpm]'
             (source/'old/big').write_bytes(b'x' * 4000)
-            (source/'new/deep').mkdir(parents=True)
-            (source/'new/deep/blob').write_bytes(b'x' * 4000)
+            (new/'deep').mkdir(parents=True)
+            (new/'deep/blob').write_bytes(b'x' * 4000)
             (source/'small').write_bytes(b'x' * 10)
             restored = backup()
-            self.assertFalse((restored/'new').exists())
+            self.assertFalse((restored/new.name).exists())
             self.assertFalse((restored/'old/big').exists())
             self.assertTrue((restored/'small').is_file())
-            self.assertIn(f'{source/"new"}  (1 files)', sent[-1])
-            self.assertEqual([h['path'] for h in json.loads((root/'state/local-held.json').read_text())],
-                             [str(source/'new'), str(source/'old/big')])
+            self.assertIn(f'{new}  (1 files)', sent[-1])
+            held = lambda: [h['path'] for h in json.loads((root/'state/local-held.json').read_text())]
+            self.assertEqual(set(held()), {str(new), str(source/'old/big')})
+            # Unanswered: still out, and a reminder instead of a second list.
+            restored = backup()
+            self.assertFalse((restored/new.name).exists())
+            self.assertIn('Still waiting for a choice: 2 items', sent[-1])
+            self.assertNotIn('NOT backed up', sent[-1])
             from cli import decide_path
-            for path, choice in ((source/'new', 'local'), (source/'old/big', 'skip')):
+            for path, choice in ((new, 'local'), (source/'old/big', 'skip')):
                 decide_path(SimpleNamespace(path=str(path), choice=choice, config=config_file,
                                             state=root/'state'), json.loads(config_file.read_text()))
-            self.assertEqual(json.loads((root/'state/local-held.json').read_text()), [])
+            self.assertEqual(held(), [])
             sent.clear()
             restored = backup()
-            self.assertTrue((restored/'new/deep/blob').is_file())
+            self.assertTrue((restored/new.name/'deep/blob').is_file())
             self.assertFalse((restored/'old/big').exists())
-            self.assertFalse(any('not backed up' in message for message in sent))
+            self.assertFalse(any('choice' in message for message in sent))
 
     def test_sqlite_scan_skip_leaves_databases_as_plain_files(self):
         with tempfile.TemporaryDirectory(prefix='server-backup-test-') as temp:
