@@ -99,17 +99,21 @@ def validate_mount(profile, writable):
 
 
 def validate_sources(config, target):
+    """Return (roots, excluded, missing). A moved or deleted selection is skipped and reported
+    rather than failing the run; an unmounted data drive still fails it."""
     roots, excluded = selection_plan(config, target)
-    if not roots:
-        raise BackupError('No file groups selected for this destination')
-    for root in roots:
-        if not Path(root).exists() or not os.access(root, os.R_OK):
-            raise BackupError(f'Selected source missing or unreadable: {root}')
-        if Path(root).is_symlink():
-            raise BackupError(f'Select the actual data path rather than a symlink: {root}')
+    # Check the drive before dropping missing roots: an unmounted drive would otherwise look like
+    # moved folders and produce a partial snapshot that cloud retention keeps as the only copy.
     if any(Path(root).is_relative_to(Path('/mnt/data')) for root in roots):
         result = subprocess.run(['findmnt', '--json', '--mountpoint', '/mnt/data',
                                  '--output', 'UUID'], capture_output=True, text=True)
         if result.returncode or json.loads(result.stdout)['filesystems'][0].get('uuid') != config['data_uuid']:
             raise BackupError('/mnt/data is missing or contains the wrong drive')
-    return roots, excluded
+    missing = [root for root in roots if not Path(root).exists() or not os.access(root, os.R_OK)]
+    roots = [root for root in roots if root not in missing]
+    if not roots:
+        raise BackupError('No selected source exists for this destination')
+    for root in roots:
+        if Path(root).is_symlink():
+            raise BackupError(f'Select the actual data path rather than a symlink: {root}')
+    return roots, excluded, missing

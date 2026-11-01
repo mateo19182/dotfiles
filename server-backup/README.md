@@ -1,15 +1,15 @@
 Server backup: operating guide
-Updated 2026-10-03
+Updated 2026-11-01
 
 Locations
   Command: /home/mateo/.local/bin/server-backup
-  Implementation: /home/mateo/.local/share/server-backup/
+  Implementation: ~/dotfiles/server-backup (linked to ~/.local/share/server-backup by
+    ./install.sh server-backup, with the systemd units and the Hermes skill)
   Source of truth: /home/mateo/.config/server-backup/config.json
   Private logs, status, export staging (deleted after each successful run): /home/mateo/.local/state/server-backup/
   Systemd units: /home/mateo/.config/systemd/user/server-backup*
   Local encrypted repository: /mnt/external_drive/restic-server
   Cloud: private R2 Standard bucket server-backup-m19182, prefix server-backup/
-  Review: http://100.83.166.6:8766/
   Progress: http://100.83.166.6:8766/progress.html
 
 How it works
@@ -22,24 +22,22 @@ compression. Each backup must complete and pass a small restore-probe test.
 The probe is not a full service recovery test. Weekly checks read 5% of repo data.
 An absent/wrong/read-only Toshiba drive fails instead of using the main disk.
 
-Current policy
-Keep original photos, exported artwork, misc and unique project work on both.
-Other art, music, recordings, Syncthing vaults, downloaded audio collections,
-retained own model checkpoints and old encrypted data archives are local-only.
-Only Linkwarden and Ghost databases, plus Ghost content, are exported.
-Exclude Desktop, backups, Work, Downloads, installers, public datasets,
-reinstallable environments/dependencies, generated outputs, AI chat histories,
-and known credentials including .env/auth/key files. Do not delete sources
-when changing backup scope. The config defines the detailed exceptions.
-Keep Ableton .asd files: they can contain original clip defaults/warp markers.
-Keep own final checkpoints even when published. Keep unpushed commits, stashes,
-local modifications, untracked/ignored originals, and unverifiable Git repos.
-2026-10-22 cuts: skip typology-machine generated crops (multicategory,
-store_sign), forocoches-lm runs/*/checkpoint-* and tg-monitor vec.db; keep
-typology-machine/data and forocoches fc_dataset_7-8.sqlite local-only.
-Also skip forocoches v2/final-bf16, graffiti-ai hf/uv caches, the quarantined
-henad Next build, art/music/vst-installers and art/sounds/ytdl. Downloaded
-sample packs, music-library and art/gente stay in scope by user choice.
+Current policy (opt-in since 2026-11-01)
+Nothing is backed up unless config.json selects it. Project folders, ~/.local/share and
+code are not roots: Git-tracked code is expected on GitHub, models and datasets on Hugging
+Face. Only data that exists nowhere else is listed, path by path: ~/services, collected
+archives (tg-monitor databases), paid LLM outputs (forocoches labels, legal-exploits eval),
+raw crawls and own trained weights (local only). Photos live in Immich (/mnt/data/immich).
+Media roots (art, music-library, misc, obsidian, uni, ...) are listed folder by folder.
+Exclude installers, public datasets, reinstallable environments, generated outputs, AI chat
+histories and known credentials including .env/auth/key files. Do not delete sources when
+changing backup scope. Keep Ableton .asd files: they can contain original clip defaults.
+Inside a selected folder, anything new over review_new_min_bytes (default 1 GiB) since the
+previous snapshot is held back from that run and every later one until a choice is recorded:
+the run starts by sending the list through notify_command (Hermes on Telegram), Mateo replies,
+and Hermes runs `server-backup decide PATH both|local|skip` (skill in hermes/SKILL.md).
+`server-backup held` lists what is waiting. A selected path that no longer exists (moved or
+deleted) is skipped with a warning instead of failing the run.
 Known-secret filters are not a guarantee that original files contain no secrets.
 Raw Docker database directories are excluded. Active SQLite files (touched within
 sqlite_idle_minutes, default 60, or with a pending WAL/journal) use online backup
@@ -78,33 +76,12 @@ These commands share a lock. While a backup runs, CLI commands fail with
 'Another backup command is running'. Wait until it completes before scope edits.
 Do not interrupt an active backup merely to change its next-run scope.
 
-Adding a new folder
-There is no CLI add command. An agent edits config.json's selections, preserving
-all other entries and its 0600 permissions. A file selection has these fields:
-  {"id":"my-original-work","kind":"files","path":"/absolute/real/path",
-   "choice":"local","description":"Original work, local only"}
-IDs must be unique. Use the actual target directory, not a symlink. If an included
-parent already covers a folder, no additional entry is needed. To exclude a
-nested folder, add a skip selection. Global exclude_patterns/protected_paths
-still apply. A selected child cannot override an excluded ancestor with the
-current resolver: split the scope into sibling roots or revise the ancestor
-exclusion carefully; never assume more-specific selections win.
-Changing a selection does not remove it from existing recovery points. Retention
-or an explicitly reviewed snapshot rewrite is a separate operation.
-
-HTML review workflow
-The HTML shows measured disk/local/R2 sizes and stores draft changes in the
-browser. Export changes JSON or Save HTML and send the file to an agent.
-Neither button applies server changes. The agent checks baseline_hash against
-the scan, interprets directory toggles and nested exceptions, applies authorized
-config changes and validates selection_plan output.
-Refresh the current nested inventory using:
-  python3 /home/mateo/.local/share/server-backup/build_tree.py
-This scans disk and checks GitHub; it does not upload. review/build.py is the
-older flat inventory builder and is not the current tree's data source.
-Some excluded directories are aggregated and some root-owned directories cannot
-be fully measured. Review estimates are logical bytes before compression.
-Actual cloud billing depends on compressed repository bytes and retained versions.
+Adding a folder
+  server-backup decide /absolute/real/path both|local|skip
+records a choice for any path (new or existing), works while a backup runs, and applies from
+the next run. Use the real path, not a symlink. A selected child cannot override an excluded
+or local-only ancestor with the current resolver. Changing a selection does not remove it from
+existing recovery points; retention or an explicitly reviewed snapshot rewrite is separate.
 
 Status and manual checks
   systemctl --user status server-backup@local.service

@@ -8,6 +8,9 @@
 #             custom theme. Needs an existing Omarchy installation.
 #   agents    Curated agent skills into every skill directory that exists,
 #             plus the Claude Code status line script.
+#   server-backup
+#             The server's restic backup tool and its systemd user units.
+#             Config and keys stay in ~/.config/server-backup (not in Git).
 #
 # Every link is created individually. Existing files, directories and links are
 # backed up; a link that already points at this repository is left alone, so
@@ -19,7 +22,7 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 DRY_RUN=0
 
 usage() {
-    sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit "${1:-1}"
 }
 
@@ -28,7 +31,7 @@ for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY_RUN=1 ;;
         -h|--help) usage 0 ;;
-        omarchy|agents) profiles+=("$arg") ;;
+        omarchy|agents|server-backup) profiles+=("$arg") ;;
         *) printf 'Unknown argument: %s\n\n' "$arg" >&2; usage ;;
     esac
 done
@@ -143,6 +146,22 @@ PY
         done
         BACKUP_DIR=""
     done
+fi
+
+# --- server-backup ---------------------------------------------------------
+
+if has_profile server-backup; then
+    printf '\n== server-backup\n'
+    # Replaced copies go to a state directory: beside the originals they would sit in the unit directory.
+    BACKUP_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/backups/$(date +%Y%m%d-%H%M%S)/server-backup"
+    link "$DOTFILES_DIR/server-backup" "$HOME/.local/share/server-backup"
+    for unit in "$DOTFILES_DIR"/server-backup/systemd/*; do
+        link "$unit" "$CONFIG_DIR/systemd/user/$(basename -- "$unit")"
+    done
+    # Lets Hermes apply Telegram replies about held-back items.
+    [[ -d "$HOME/.hermes/skills" ]] && link "$DOTFILES_DIR/server-backup/hermes" "$HOME/.hermes/skills/server-backup"
+    BACKUP_DIR=""
+    run systemctl --user daemon-reload
 fi
 
 # --- next steps ------------------------------------------------------------

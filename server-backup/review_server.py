@@ -6,7 +6,7 @@ import json
 import subprocess
 import time
 
-ROOT = Path('/home/mateo/.local/share/server-backup/review')
+ROOT = Path(__file__).resolve().parent / 'review'
 STATE = Path('/home/mateo/.local/state/server-backup')
 
 def read_json(path):

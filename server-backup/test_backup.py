@@ -176,6 +176,61 @@ class RecoveryTest(unittest.TestCase):
                 self.assertIn(str(source/'new'), sent[0])
                 self.assertNotIn(str(source/'small'), sent[0])
 
+    def test_new_big_folder_is_held_back_until_decided(self):
+        with tempfile.TemporaryDirectory(prefix='server-backup-test-') as temp:
+            root = Path(temp)
+            source = root/'work'
+            (source/'old').mkdir(parents=True)
+            (source/'old/file').write_text('kept')
+            key = root/'key'
+            key.write_text('disposable-integration-test-key\n')
+            key.chmod(0o600)
+            config_file = root/'config.json'
+            config = {'host': 'backup-test', 'restic_binary': '/home/mateo/.local/bin/restic',
+                      'password_file': str(key), 'recovery_key_saved': True,
+                      'data_uuid': 'unused', 'exclude_patterns': [], 'protected_paths': [],
+                      'selections': [{'id':'work','kind':'files','path':str(source),'choice':'both'},
+                                     {'id':'gone','kind':'files','path':str(root/'moved'),'choice':'both'}],
+                      'profiles': {'local': {'repository': str(root/'repo')}},
+                      'retention': {'last': 10}, 'review_new_min_bytes': 1000}
+            config_file.write_text(json.dumps(config))
+            sent = []
+
+            def backup():
+                runner = Runner(json.loads(config_file.read_text()), root/'state')
+                with patch('runner.validate_mount'), patch.object(runner, 'docker_inventory', return_value=[]), \
+                     patch.object(runner, 'notify', side_effect=sent.append):
+                    runner.backup('local')
+                    restore = Path(tempfile.mkdtemp(dir=temp))
+                    runner.restic('local', ['restore', 'latest', '--target', str(restore)])
+                return restore/str(source).lstrip('/')
+
+            with patch('runner.validate_mount'):
+                Runner(config, root/'state').restic('local', ['init'], writable=True)
+            backup()
+            self.assertIn(str(root/'moved'), sent[-1])
+            (source/'old/big').write_bytes(b'x' * 4000)
+            (source/'new/deep').mkdir(parents=True)
+            (source/'new/deep/blob').write_bytes(b'x' * 4000)
+            (source/'small').write_bytes(b'x' * 10)
+            restored = backup()
+            self.assertFalse((restored/'new').exists())
+            self.assertFalse((restored/'old/big').exists())
+            self.assertTrue((restored/'small').is_file())
+            self.assertIn(f'{source/"new"}  (1 files)', sent[-1])
+            self.assertEqual([h['path'] for h in json.loads((root/'state/local-held.json').read_text())],
+                             [str(source/'new'), str(source/'old/big')])
+            from cli import decide_path
+            for path, choice in ((source/'new', 'local'), (source/'old/big', 'skip')):
+                decide_path(SimpleNamespace(path=str(path), choice=choice, config=config_file,
+                                            state=root/'state'), json.loads(config_file.read_text()))
+            self.assertEqual(json.loads((root/'state/local-held.json').read_text()), [])
+            sent.clear()
+            restored = backup()
+            self.assertTrue((restored/'new/deep/blob').is_file())
+            self.assertFalse((restored/'old/big').exists())
+            self.assertFalse(any('not backed up' in message for message in sent))
+
     def test_sqlite_scan_skip_leaves_databases_as_plain_files(self):
         with tempfile.TemporaryDirectory(prefix='server-backup-test-') as temp:
             root = Path(temp)

@@ -14,6 +14,10 @@ from policy import BackupError, atomic_json, is_excluded, selected, validate_mou
 PROBE = b'server-backup restore verification v1\n'
 
 
+def size_label(size):
+    return f'{size/1024**3:.1f} GiB' if size >= 1024**3 else f'{size/1024**2:.0f} MiB'
+
+
 class Runner:
     def __init__(self, config, state):
         self.config = config
@@ -132,6 +136,59 @@ class Runner:
         minimum = self.config.get('report_new_min_bytes', 500 * 1024**2)
         return sorted(((size, group) for group, size in sizes.items() if size >= minimum), reverse=True)
 
+    def hold_back_new(self, target, previous, roots, excluded):
+        """Files and folders over review_new_min_bytes that appeared since the previous snapshot
+        inside a selected folder and that no selection names. They stay out of the backup until
+        `server-backup decide` records a choice."""
+        if not previous:
+            return []
+        known = set()
+        for line in self.restic(target, ['ls', '--json', previous]).splitlines():
+            if line.startswith('{'):
+                node = json.loads(line)
+                if node.get('struct_type') == 'node':
+                    known.add(node['path'])
+        decided = {item['path'] for item in self.config['selections'] if item['kind'] == 'files'}
+        minimum = self.config.get('review_new_min_bytes', 1024**3)
+
+        def measure(path):
+            size = count = 0
+            for base, dirs, files in os.walk(path):
+                dirs[:] = [d for d in dirs if not is_excluded(Path(base, d), roots, excluded)]
+                for name in files:
+                    file = Path(base, name)
+                    if file.is_symlink() or is_excluded(file, roots, excluded):
+                        continue
+                    try:
+                        size += file.stat().st_size
+                        count += 1
+                    except OSError:
+                        continue
+            return size, count
+
+        held = []
+        # Only folders the previous snapshot already had are walked: a newly chosen root is
+        # wanted as a whole, and inside known folders only unseen entries are measured.
+        pending = [root for root in roots if root in known and Path(root).is_dir()]
+        while pending:
+            try:
+                entries = list(os.scandir(pending.pop()))
+            except OSError:
+                continue
+            for entry in entries:
+                is_dir = entry.is_dir(follow_symlinks=False)
+                if entry.path in known:
+                    if is_dir and not is_excluded(Path(entry.path), roots, excluded):
+                        pending.append(entry.path)
+                    continue
+                if (entry.is_symlink() or entry.path in decided
+                        or is_excluded(Path(entry.path), roots, excluded)):
+                    continue
+                size, count = measure(entry.path) if is_dir else (entry.stat(follow_symlinks=False).st_size, 1)
+                if size >= minimum:
+                    held.append({'path': entry.path, 'bytes': size, 'files': count})
+        return sorted(held, key=lambda item: -item['bytes'])
+
     def notify(self, message):
         command = self.config.get('notify_command')
         if command:
@@ -140,8 +197,8 @@ class Runner:
             except (OSError, subprocess.SubprocessError) as error:
                 print(f'warning: notification failed: {error}', flush=True)
 
-    def prepare(self, target):
-        roots, excluded = validate_sources(self.config, target)
+    def prepare(self, target, previous=None):
+        roots, excluded, missing = validate_sources(self.config, target)
         self.raw_sqlite = {}
         staging = self.state / 'staging' / target
         if staging.exists():
@@ -156,6 +213,22 @@ class Runner:
                 if any(mount['Destination'].startswith(d) for d in known_db_destinations):
                     database_paths.append(mount['Source'])
         excluded.extend(database_paths)
+        held = self.hold_back_new(target, previous, roots, excluded)
+        excluded.extend(item['path'] for item in held)
+        atomic_json(self.state / (target + '-held.json'), held)
+        alerts = []
+        if missing:
+            alerts.append('Selected paths are missing (moved or deleted?) and were skipped:\n' + '\n'.join(missing))
+        if held:
+            alerts.append('New, not backed up until you choose:\n' +
+                          '\n'.join(f'{n}. {size_label(item["bytes"])}  {item["path"]}  ({item["files"]:,} files)'
+                                    for n, item in enumerate(held, 1)) +
+                          '\nReply per item: both (drive + R2), local (drive only) or skip.'
+                          '\nApply with: server-backup decide PATH CHOICE')
+        if alerts:
+            message = f'{target} backup starting\n' + '\n\n'.join(alerts)
+            print(message, flush=True)
+            self.notify(message)
         manifest = {'created': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                     'target': target, 'config': self.config,
                     'containers': inventory, 'exports': []}
@@ -268,7 +341,7 @@ class Runner:
         paused = []
         try:
             self.pause_units(paused)
-            roots, excluded, staging = self.prepare(target)
+            roots, excluded, staging = self.prepare(target, previous)
             arguments = ['backup', '--json', '--host', self.config['host'],
                          '--tag', 'server-backup', '--tag', target,
                          '--group-by', 'host,tags']
@@ -320,8 +393,7 @@ class Runner:
             print(f'{target}: warning: new-path report failed: {error}', flush=True)
         if big:
             alerts.append('New paths since the previous snapshot:\n' +
-                          '\n'.join(f'{size/1024**3:.1f} GiB  {group}' if size >= 1024**3 else f'{size/1024**2:.0f} MiB  {group}'
-                                    for size, group in big[:15]))
+                          '\n'.join(f'{size_label(size)}  {group}' for size, group in big[:15]))
         if alerts:
             message = f'{target} backup {snapshot[:8]}\n' + '\n\n'.join(alerts)
             print(message, flush=True)
@@ -331,7 +403,9 @@ class Runner:
             self.retention(target, apply=True)
 
     def estimate(self, target):
-        roots, excluded = validate_sources(self.config, target)
+        roots, excluded, missing = validate_sources(self.config, target)
+        if missing:
+            print('Missing selected paths (skipped):', *missing, sep='\n  ')
         total = count = 0
         errors = []
         def problem(error):

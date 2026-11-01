@@ -3,6 +3,7 @@
 import argparse
 import fcntl
 import getpass
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -10,13 +11,42 @@ import secrets
 import sys
 import time
 
-from policy import BackupError, atomic_json, selection_plan, validate_mount
+from policy import BackupError, atomic_json, is_excluded, selection_plan
 from runner import Runner
 
 CONFIG = Path('/home/mateo/.config/server-backup/config.json')
 STATE = Path('/home/mateo/.local/state/server-backup')
 # Weekly local and monthly cloud schedules, plus a day of slack.
 MAX_AGE_HOURS = {'local': 8 * 24, 'cloud': 32 * 24}
+
+
+def held_items(state, target):
+    try:
+        return json.loads((state / (target + '-held.json')).read_text())
+    except (OSError, ValueError):
+        return []
+
+
+def decide_path(args, config):
+    path = os.path.abspath(args.path)
+    if not os.path.lexists(path):
+        raise BackupError(f'No such path: {path}')
+    if os.path.islink(path):
+        raise BackupError('Choose the actual data path rather than a symlink')
+    item = next((i for i in config['selections'] if i.get('path') == path), None)
+    if item is None:
+        item = {'id': 'review-' + hashlib.sha1(path.encode()).hexdigest()[:10], 'kind': 'files',
+                'path': path, 'description': 'Chosen in backup review ' + time.strftime('%Y-%m-%d')}
+        config['selections'].append(item)
+    item['choice'] = args.choice
+    atomic_json(args.config, config)
+    for target in ['local', 'cloud']:
+        held = [h for h in held_items(args.state, target) if h['path'] != path]
+        atomic_json(args.state / (target + '-held.json'), held)
+    roots, excluded = selection_plan(config, 'cloud')
+    if args.choice == 'both' and is_excluded(path, roots, excluded):
+        print('Note: a parent folder is local only, so this stays on the local drive.')
+    print(f'{path}: {args.choice} from the next run')
 
 
 def main():
@@ -32,10 +62,13 @@ def main():
     commands.add_parser('key-saved')
     commands.add_parser('configure-cloud')
     commands.add_parser('status')
-    commands.add_parser('cleanup-approved-2024')
+    commands.add_parser('held')
     choose = commands.add_parser('select')
     choose.add_argument('id')
     choose.add_argument('choice', choices=['local', 'cloud', 'both', 'skip', 'pending'])
+    decide = commands.add_parser('decide', help='Record a choice for a path, e.g. one held back as new')
+    decide.add_argument('path')
+    decide.add_argument('choice', choices=['both', 'local', 'skip'])
     for name in ['init', 'backup', 'check', 'restore-test', 'retention', 'estimate']:
         command = commands.add_parser(name)
         command.add_argument('target', choices=['local', 'cloud'])
@@ -46,6 +79,15 @@ def main():
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
     args.state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Choices only edit the config for the next run, so they work while a backup holds the lock.
+    if args.command == 'held':
+        for target in ['local', 'cloud']:
+            for item in held_items(args.state, target):
+                print(f'{target:5}  {item["bytes"]/1024**3:6.1f} GiB  {item["path"]}')
+        return
+    if args.command == 'decide':
+        decide_path(args, config)
+        return
     with (args.state / 'run.lock').open('a') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | (0 if args.wait_lock else fcntl.LOCK_NB))
@@ -102,33 +144,6 @@ def main():
             cloud['bucket'] = bucket
             atomic_json(args.config, config)
             print('Cloud configured. No bucket created and no files uploaded.')
-        elif args.command == 'cleanup-approved-2024':
-            # Exactly these two standalone recovery points were approved in
-            # this session. Never delete the incremental repository.
-            import shutil
-            profile = config['profiles']['local']
-            validate_mount(profile, writable=True)
-            drive = Path(profile['mount'])
-            preserved = drive / 'backupincr'
-            if not (preserved / 'duplicity-full.20260118T151851Z.manifest').is_file():
-                raise BackupError('January 2026 recovery point is missing; cleanup refused')
-            for name, stamp in [('backup221024', '20241022T083750Z'),
-                                ('backup031124', '20241103T130005Z')]:
-                folder = drive / name
-                if not folder.exists():
-                    continue
-                if folder.is_symlink() or not folder.is_dir():
-                    raise BackupError('Unexpected old-backup path; cleanup refused')
-                import re
-                entries = list(folder.iterdir())
-                prefix = re.escape(stamp)
-                known = re.compile(r'duplicity-full\.' + prefix + r'\.(?:manifest(?:\.gpg)?|vol[0-9]+\.difftar\.(?:gz|gpg))|duplicity-full-signatures\.' + prefix + r'\.sigtar\.(?:gz|gpg)')
-                if not entries or any(e.is_symlink() or not e.is_file() or not known.fullmatch(e.name) for e in entries):
-                    raise BackupError(f'Unexpected contents in {name}; cleanup refused')
-                if not any('.vol1.difftar.' in e.name for e in entries):
-                    raise BackupError(f'Expected {name} volume missing; cleanup refused')
-                shutil.rmtree(folder)
-                print(f'Removed approved old full backup: {name}')
         elif args.command == 'init':
             print(runner.restic(args.target, ['init'], writable=True))
         elif args.command == 'backup':
@@ -163,6 +178,9 @@ def main():
                     if value.get('skipped_files'):
                         print(f'{target}: {value["skipped_files"]} unreadable files skipped; '
                               f'see {args.state / (target + "-skipped.txt")}')
+                held = held_items(args.state, target)
+                if held:
+                    print(f'{target}: {len(held)} new items held back until decided (server-backup held)')
                 error_file = args.state / (target + '-error.json')
                 if error_file.exists():
                     print(f'{target}: most recent attempt failed: {json.loads(error_file.read_text())["error"]}')
