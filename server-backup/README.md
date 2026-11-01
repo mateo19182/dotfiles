@@ -36,7 +36,8 @@ Inside a selected folder, anything new over review_new_min_bytes (default 1 GiB)
 previous snapshot is held back from that run and every later one until a choice is recorded:
 the run starts by sending the list through notify_command (Hermes on Telegram), Mateo replies,
 and Hermes runs `server-backup decide PATH both|local|skip` (skill in hermes/SKILL.md).
-`server-backup held` lists what is waiting. A selected path that no longer exists (moved or
+`server-backup held` lists what is waiting. New contents of folders in review_auto_include
+(the music library) always go in without asking. A selected path that no longer exists (moved or
 deleted) is skipped with a warning instead of failing the run.
 Known-secret filters are not a guarantee that original files contain no secrets.
 Raw Docker database directories are excluded. Active SQLite files (touched within

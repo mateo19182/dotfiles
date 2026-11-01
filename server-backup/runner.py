@@ -339,9 +339,12 @@ class Runner:
                 print(f'{target}: warning: new-item check failed: {error}', flush=True)
         decided = {i['path'] for i in self.config['selections'] if i['kind'] == 'files'}
         minimum = self.config.get('review_new_min_bytes', 1024**3)
+        # Folders whose new contents always go in, e.g. the music library.
+        always = self.config.get('review_auto_include', [])
         new_held = [{'path': path, 'bytes': size, 'files': count}
                     for path, (size, count) in sorted(items.items(), key=lambda kv: -kv[1][0])
-                    if size >= minimum and path not in decided]
+                    if size >= minimum and path not in decided
+                    and not any(Path(path).is_relative_to(folder) for folder in always)]
         if new_held:
             print(f'{target}: holding back {len(new_held)} new items until a choice is recorded', flush=True)
             snapshot = self.drop_from_snapshot(target, snapshot, [item['path'] for item in new_held])

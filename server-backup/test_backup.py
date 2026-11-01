@@ -192,7 +192,8 @@ class RecoveryTest(unittest.TestCase):
                       'selections': [{'id':'work','kind':'files','path':str(source),'choice':'both'},
                                      {'id':'gone','kind':'files','path':str(root/'moved'),'choice':'both'}],
                       'profiles': {'local': {'repository': str(root/'repo')}},
-                      'retention': {'last': 10}, 'review_new_min_bytes': 1000}
+                      'retention': {'last': 10}, 'review_new_min_bytes': 1000,
+                      'review_auto_include': [str(source/'music')]}
             config_file.write_text(json.dumps(config))
             sent = []
 
@@ -214,7 +215,10 @@ class RecoveryTest(unittest.TestCase):
             (new/'deep').mkdir(parents=True)
             (new/'deep/blob').write_bytes(b'x' * 4000)
             (source/'small').write_bytes(b'x' * 10)
+            (source/'music/album').mkdir(parents=True)
+            (source/'music/album/track').write_bytes(b'x' * 4000)
             restored = backup()
+            self.assertTrue((restored/'music/album/track').is_file())
             self.assertFalse((restored/new.name).exists())
             self.assertFalse((restored/'old/big').exists())
             self.assertTrue((restored/'small').is_file())
