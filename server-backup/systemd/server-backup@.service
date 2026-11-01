@@ -1,0 +1,14 @@
+[Unit]
+Description=Encrypted server backup to %i
+
+[Service]
+Type=oneshot
+ExecStart=/home/mateo/.local/bin/server-backup --wait-lock backup %i
+UMask=0077
+Nice=15
+IOSchedulingClass=idle
+TimeoutStartSec=24h
+
+
+# Enable recurring runs only after the first backup and restore probe succeed.
+ExecStartPost=/usr/bin/systemctl --user --no-block enable --now server-backup-%i.timer

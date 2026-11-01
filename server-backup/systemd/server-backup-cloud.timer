@@ -1,0 +1,12 @@
+[Unit]
+Description=Monthly cloud server backup
+
+[Timer]
+OnCalendar=*-*-01 05:00:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=server-backup@cloud.service
+
+[Install]
+WantedBy=timers.target
+

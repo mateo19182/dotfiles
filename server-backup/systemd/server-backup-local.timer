@@ -1,0 +1,12 @@
+[Unit]
+Description=Weekly local server backup
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=server-backup@local.service
+
+[Install]
+WantedBy=timers.target
+

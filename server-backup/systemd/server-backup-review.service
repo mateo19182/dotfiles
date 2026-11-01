@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup selection review on Tailscale
+After=network-online.target
+[Service]
+ExecStart=/usr/bin/python3 /home/mateo/.local/share/server-backup/review_server.py
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+[Install]
+WantedBy=default.target
