@@ -71,6 +71,18 @@
 
     autofirma = {
       enable = true;
+      # Upstream's Maven dependency hashes drift; pin the ones that changed. When a
+      # build fails with "hash mismatch", put the "got:" hash here.
+      package =
+        (inputs.autofirma-nix.lib.mkAutofirma pkgs {
+          maven-dependencies-hash = {
+            "autofirma.clienteafirma".hash = "sha256-fWpSqMtG3iYTxbd8XMxI/tukcthdeBcGY/ZrI8ZDt5M=";
+            "autofirma.clienteafirma.dependencies.jmulticard".hash =
+              "sha256-K63gBzsQiKMkpD27kFa6AGk/bcaIOxRxXNWLEff/Xac=";
+            "autofirma.clienteafirma.dependencies.clienteafirma-external".hash =
+              "sha256-bSW7wR6XOSW4pjdznSVE1tHWKNdsn3UQPwx2Hz94ftU=";
+          };
+        }).autofirma;
       firefoxIntegration.enable = true;
     };
     configuradorfnmt.enable = true;
