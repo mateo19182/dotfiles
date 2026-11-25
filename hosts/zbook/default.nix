@@ -1,21 +1,4 @@
 { inputs, user, ... }:
-let
-  testVm = {
-    memorySize = 8192;
-    cores = 6;
-    # home-manager links into ~/dotfiles; give the VM this checkout there.
-    sharedDirectories.dotfiles = {
-      source = "/home/m19182/dotfiles-nixos";
-      target = "/home/m19182/dotfiles";
-    };
-    # Software-rendered so it runs anywhere.
-    qemu.options = [
-      "-vga none"
-      "-device virtio-vga"
-      "-display vnc=127.0.0.1:5"
-    ];
-  };
-in
 {
   imports = [
     ./hardware.nix
@@ -41,12 +24,21 @@ in
     users.${user.name} = import ../../home;
   };
 
-  # Test VMs: `.#...zbook.config.system.build.vm` (quick) or `.vmWithDisko` (real
-  # LUKS + btrfs layout, disk password "disko"). View either over VNC on :5905.
-  virtualisation.vmVariant.virtualisation = testVm // { diskSize = 20480; };
-  virtualisation.vmVariantWithDisko.virtualisation = testVm // {
-    # disko's variant redefines fileSystems; keep @home mounted early like the real one.
-    fileSystems."/home".neededForBoot = true;
+  # Test run: `nix build .#nixosConfigurations.zbook.config.system.build.vm && ./result/bin/run-zbook-vm`,
+  # then a VNC viewer on localhost:5905 (user m19182, password changeme).
+  virtualisation.vmVariant.virtualisation = {
+    memorySize = 8192;
+    cores = 6;
+    diskSize = 20480;
+    sharedDirectories.dotfiles = {
+      source = "/home/m19182/dotfiles-nixos";
+      target = "/home/m19182/dotfiles";
+    };
+    qemu.options = [
+      "-vga none"
+      "-device virtio-vga"
+      "-display vnc=127.0.0.1:5"
+    ];
   };
 
   # Don't bump after install: it pins stateful defaults, not the package versions.

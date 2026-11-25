@@ -3,8 +3,6 @@
   disko.devices.disk.main = {
     type = "disk";
     device = "/dev/nvme0n1";
-    # Only used by `vmWithDisko` test images; the real install takes the whole disk.
-    imageSize = "48G";
     content = {
       type = "gpt";
       partitions = {

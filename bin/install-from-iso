@@ -33,4 +33,4 @@ nixos-enter --root /mnt -c "chown -R $user:users /home/$user"
 echo "== your login/sudo password"
 nixos-enter --root /mnt -c "passwd $user" </dev/tty
 
-echo "Done. Reboot, then run ~/dotfiles/bin/post-install BACKUP (see INSTALL.md)."
+echo "Done. Reboot; INSTALL.md has the first-boot steps."

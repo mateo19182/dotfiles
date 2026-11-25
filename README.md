@@ -36,7 +36,7 @@ nix build .#nixosConfigurations.zbook.config.system.build.vm
 ./result/bin/run-zbook-vm
 ```
 
-User `m19182`, password `changeme`.
+Open a VNC viewer on `localhost:5905`. User `m19182`, password `changeme`.
 
 ## Install
 
