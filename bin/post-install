@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Run on the NEW system after first boot, with the backup made by pre-install-backup.
+#
+#   post-install /run/media/m19182/<disk>/zbook
+#   post-install server:/srv/backups/zbook
+set -euo pipefail
+
+src="${1:?usage: post-install BACKUP (local path or host:path)}"
+
+echo "== restore \$HOME (repo and config files managed by Nix are left alone)"
+rsync -aHAX --info=progress2 \
+  --exclude '/dotfiles/' \
+  --exclude '/.bashrc' --exclude '/.bash_profile' --exclude '/.profile' \
+  --exclude '/.config/hypr/' --exclude '/.config/ghostty/' --exclude '/.config/git/' \
+  --exclude '/.config/tmux/' --exclude '/.config/starship.toml' --exclude '/.config/mise/' \
+  --exclude '/.config/nvim/' --exclude '/.config/xkb/' --exclude '/.config/omarchy/' \
+  --exclude '/.config/mimeapps.list' --exclude '/.config/systemd/' \
+  --exclude '/.local/share/applications/' --exclude '/.local/bin/' \
+  --exclude '/.local/share/keyrings/' \
+  "$src/" "$HOME/"
+
+stash="$HOME/.local/share/pre-install"
+
+# Old ~/.local/bin is mostly mise/Omarchy shims that would shadow the Nix tools;
+# park it so you can copy back the scripts you still want.
+rsync -a "$src/.local/bin/" "$stash/old-local-bin/"
+echo "old ~/.local/bin parked in $stash/old-local-bin"
+
+echo "== network connections"
+sudo cp -a "$stash/system-connections/." /etc/NetworkManager/system-connections/
+sudo chown -R root:root /etc/NetworkManager/system-connections
+sudo chmod 600 /etc/NetworkManager/system-connections/*
+sudo nmcli connection reload
+
+echo "== beszel token"
+if [[ -s $stash/beszel-agent.env ]]; then
+  sudo install -Dm600 "$stash/beszel-agent.env" /etc/beszel/agent.env
+  sudo systemctl restart beszel-agent
+fi
+
+echo "== runtimes (mise)"
+mise install
+
+echo "== accounts"
+sudo tailscale up || true
+echo "Still by hand: 'mullvad account login', AWS VPN profile import, Noctalia bar widgets."

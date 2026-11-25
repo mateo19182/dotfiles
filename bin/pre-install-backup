@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Run on the OLD (Omarchy) system before wiping. Copies $HOME, minus caches and
+# anything rebuildable, to DEST plus the few system bits the new install needs.
+#
+#   pre-install-backup /run/media/m19182/<disk>/zbook   # external disk
+#   pre-install-backup server:/srv/backups/zbook        # rsync over ssh/tailscale
+#
+# Safe to re-run: rsync only copies what changed.
+set -euo pipefail
+
+dest="${1:?usage: pre-install-backup DEST (local path or host:path)}"
+stash="$HOME/.local/share/pre-install"
+mkdir -p "$stash"
+chmod 700 "$stash"
+
+echo "== secrets"
+# Secret env vars from ~/.bashrc go to ~/.config/secrets.env, which the new bash sources.
+if [[ ! -f $HOME/.config/secrets.env ]]; then
+  grep -E '^export (DD_API_KEY|DD_APP_KEY)=' "$HOME/.bashrc" | sed 's/^export //' > "$HOME/.config/secrets.env" || true
+  chmod 600 "$HOME/.config/secrets.env"
+  echo "wrote ~/.config/secrets.env ($(wc -l < "$HOME/.config/secrets.env") vars)"
+fi
+
+# Beszel agent token, from the current unit.
+if systemctl cat beszel-agent.service &>/dev/null; then
+  systemctl cat beszel-agent.service | grep -oE 'TOKEN=[^"]+' > "$stash/beszel-agent.env" || true
+  chmod 600 "$stash/beszel-agent.env"
+  echo "saved beszel token"
+fi
+
+echo "== network connections (sudo)"
+sudo cp -a /etc/NetworkManager/system-connections "$stash/"
+sudo chown -R "$USER:" "$stash/system-connections"
+chmod -R go-rwx "$stash/system-connections"
+
+echo "== package list (for reference)"
+pacman -Qqe > "$stash/pacman-explicit.txt"
+pacman -Qqm > "$stash/pacman-foreign.txt"
+
+echo "== repos with local-only work"
+find "$HOME/Work" -maxdepth 4 -name .git -type d -prune 2>/dev/null | sed 's|/.git$||' | while read -r r; do
+  dirty=$(git -C "$r" status --porcelain 2>/dev/null | wc -l)
+  ahead=$(git -C "$r" log --branches --not --remotes --oneline 2>/dev/null | wc -l)
+  remote=$(git -C "$r" remote | head -1)
+  if [[ $dirty != 0 || $ahead != 0 || -z $remote ]]; then
+    printf '  %-55s dirty=%-3s unpushed=%-4s remote=%s\n' "${r#"$HOME"/}" "$dirty" "$ahead" "${remote:-NONE}"
+  fi
+done | tee "$stash/repos-local-work.txt"
+echo "  (all of these are in the backup anyway)"
+
+echo "== rsync \$HOME -> $dest"
+rsync -aHAX --info=progress2 --delete-excluded \
+  --exclude '/.cache/' \
+  --exclude '/.nix-portable/' \
+  --exclude '/.local/share/Steam/' \
+  --exclude '/.local/share/mise/' \
+  --exclude '/.local/share/pnpm/' \
+  --exclude '/.local/share/Trash/' \
+  --exclude '/.npm/' \
+  --exclude '/.nuget/' \
+  --exclude '/.pub-cache/' \
+  --exclude '/.rustup/' \
+  --exclude '/.cargo/registry/' \
+  --exclude '/go/pkg/' \
+  --exclude '/.lmstudio/models/' \
+  --exclude '/.var/app/*/cache/' \
+  --exclude 'node_modules/' \
+  --exclude '.venv/' \
+  --exclude 'venv/' \
+  --exclude '__pycache__/' \
+  --exclude '/Work/**/target/' \
+  "$HOME/" "$dest/"
+
+echo
+echo "Done. Check $dest has Work, .ssh, .gnupg, .aws, .config and .local/share/pre-install."
+echo "LM Studio models and Steam games were skipped; they re-download."

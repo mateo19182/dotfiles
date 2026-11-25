@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Run as root from the NixOS minimal ISO. WIPES /dev/nvme0n1.
+#
+#   git clone -b nixos https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
+#   bash /tmp/dotfiles/bin/install-from-iso
+set -euo pipefail
+
+repo=/tmp/dotfiles
+user=m19182
+export NIX_CONFIG="experimental-features = nix-command flakes"
+
+[[ $EUID == 0 ]] || { echo "run as root (sudo -i)"; exit 1; }
+[[ -d $repo ]] || git clone -b nixos https://github.com/mateo19182/dotfiles.git "$repo"
+
+echo "== hardware (compare with hosts/zbook/hardware.nix)"
+nixos-generate-config --no-filesystems --show-hardware-config | grep -E 'Modules|kvm' || true
+
+lsblk -o NAME,SIZE,MODEL /dev/nvme0n1
+read -rp "Type WIPE to erase /dev/nvme0n1 and install: " answer </dev/tty
+[[ $answer == WIPE ]] || { echo "aborted"; exit 1; }
+
+echo "== partition + encrypt (asks for the disk password)"
+nix run github:nix-community/disko/latest -- --mode destroy,format,mount "$repo/hosts/zbook/disko.nix"
+
+echo "== install"
+nixos-install --flake "$repo#zbook" --no-root-passwd
+
+echo "== repo into place for home-manager's links"
+install -d -m 700 "/mnt/home/$user"
+cp -a "$repo" "/mnt/home/$user/dotfiles"
+nixos-enter --root /mnt -c "chown -R $user:users /home/$user"
+
+echo "== your login/sudo password"
+nixos-enter --root /mnt -c "passwd $user" </dev/tty
+
+echo "Done. Reboot, then run ~/dotfiles/bin/post-install BACKUP (see INSTALL.md)."

@@ -1,62 +1,57 @@
 # Installing on the ZBook
 
-This wipes `/dev/nvme0n1`. Do the backup first.
+This wipes `/dev/nvme0n1`. Three scripts in `bin/` do the work.
 
 ## 1. Before, on the old system
 
-- Back up your home to an external disk, minus caches:
-  `rsync -aHAX --info=progress2 --exclude .cache --exclude .local/share/Steam --exclude .nix-portable ~/ /run/media/$USER/<disk>/home-backup/`
-- Make sure these are in it: `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config/linkwarden`, `~/.claude`, `~/.codex`, `~/.config/server-backup`, `~/Work`.
-- Move secrets out of `~/.bashrc` into `~/.config/secrets.env` (one `KEY=value` per line). The new bash sources it.
-- Copy the NetworkManager connections (Wi-Fi, AirVPN WireGuard): `sudo cp -a /etc/NetworkManager/system-connections /run/media/$USER/<disk>/`
-- Get this repo onto the installer: push the `nixos` branch, or copy `~/dotfiles` to the USB disk.
+```bash
+git -C ~/dotfiles fetch && git -C ~/dotfiles show origin/nixos:bin/pre-install-backup > /tmp/pre-install-backup
+bash /tmp/pre-install-backup /run/media/m19182/<disk>/zbook      # or server:/path/zbook
+```
+
+It moves the Datadog keys from `~/.bashrc` into `~/.config/secrets.env`, saves the Beszel token and the
+NetworkManager connections (Wi-Fi, AirVPN), lists repos with uncommitted/unpushed work, and rsyncs `$HOME`
+without caches, Steam games, LM Studio models, `node_modules`, venvs and build dirs (~200 GB today).
+Re-run it right before installing so the copy is fresh.
+
+Also: write a NixOS **unstable minimal** ISO to a USB stick
+(https://nixos.org/download, "Minimal ISO image", then `sudo dd if=nixos-*.iso of=/dev/sdX bs=4M status=progress oflag=sync`).
 
 ## 2. Install
 
-Boot the NixOS unstable minimal ISO, then:
+Boot the USB (F9 for the HP boot menu), then:
 
 ```bash
 sudo -i
 nmcli device wifi connect "<ssid>" password "<password>"
-git clone -b nixos https://github.com/mateo19182/dotfiles.git /tmp/dotfiles   # or copy from USB
-
-# Compare with the hand-written hosts/zbook/hardware.nix; add anything missing.
-nixos-generate-config --no-filesystems --show-hardware-config
-
-# Partition, encrypt (asks for the disk password) and mount.
-nix --experimental-features "nix-command flakes" run github:nix-community/disko/latest -- \
-  --mode destroy,format,mount /tmp/dotfiles/hosts/zbook/disko.nix
-
-nixos-install --flake /tmp/dotfiles#zbook --no-root-passwd
-
-# Put the repo where home-manager's links expect it.
-cp -a /tmp/dotfiles /mnt/home/m19182/dotfiles
-chown -R 1000:100 /mnt/home/m19182/dotfiles
+git clone -b nixos https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
+bash /tmp/dotfiles/bin/install-from-iso
 reboot
 ```
 
+It asks you to type `WIPE`, then the new disk password, then your login password.
+Hex and AutoFirma compile during the install (10-20 min); the rest downloads.
+
 ## 3. First boot
 
-The disk password unlocks and logs you straight into Hyprland.
+The disk password unlocks and logs you straight into Hyprland. Open a terminal (Super+Return):
 
 ```bash
-passwd                                   # replace "changeme"
-rsync -a /run/media/m19182/<disk>/home-backup/ ~/   # restore data
-sudo cp -a /run/media/m19182/<disk>/system-connections/. /etc/NetworkManager/system-connections/
-sudo nmcli connection reload
-sudo tailscale up
-mullvad account login
-mise install                             # node, go, rust, python, canonfig...
-
-# Beszel agent token (from the hub, or the old /etc/systemd/system/beszel-agent.service).
-sudo install -Dm600 /dev/stdin /etc/beszel/agent.env <<< "TOKEN=<token>"
-sudo systemctl restart beszel-agent
+~/dotfiles/bin/post-install /run/media/m19182/<disk>/zbook      # same DEST as step 1
 ```
 
-AWS VPN Client: open it, File → Manage Profiles → Add, and pick `~/.config/aws-vpn-client/zepo-aws.ovpn`.
+It restores your files (leaving the Nix-managed configs alone), the network connections and the Beszel
+token, parks the old `~/.local/bin` in `~/.local/share/pre-install/old-local-bin`, runs `mise install` and
+`tailscale up`. Then by hand:
 
-Then:
+- `mullvad account login`
+- AWS VPN Client: File → Manage Profiles → Add `~/.config/aws-vpn-client/zepo-aws.ovpn`, connect once to test SSO.
+- Noctalia: Settings → Bar, add Headroom, VPN Manager and Tailnet; turn on night light.
+- Hex: `hex status` should show the model as ready; test F9.
+- Merge the branch: `cd ~/dotfiles && git checkout master && git merge nixos && git push`.
 
-- Noctalia: Settings → Bar → add the Headroom, VPN Manager and Tailnet widgets, and turn on night light.
-- Hex downloads its model on first start; check `hex status`.
-- Hibernate: the swapfile is at `/.swapvol/swapfile`. To hibernate, add `boot.resumeDevice = "/dev/mapper/root"` and `boot.kernelParams = [ "resume_offset=<n>" ]` with `<n>` from `sudo btrfs inspect-internal map-swapfile -r /.swapvol/swapfile`.
+## If something goes wrong
+
+- Bad update: pick the previous generation in the boot menu.
+- Won't boot at all: boot the USB, `cryptsetup open /dev/nvme0n1p2 root`, mount (`mount -o subvol=@ /dev/mapper/root /mnt`, plus `@nix` on `/mnt/nix`, `@home` on `/mnt/home`, `/dev/nvme0n1p1` on `/mnt/boot`), fix, `nixos-install --flake /mnt/home/m19182/dotfiles#zbook`.
+- Hibernate: the swapfile is at `/.swapvol/swapfile`. Add `boot.resumeDevice = "/dev/mapper/root"` and `boot.kernelParams = [ "resume_offset=<n>" ]` with `<n>` from `sudo btrfs inspect-internal map-swapfile -r /.swapvol/swapfile`.
