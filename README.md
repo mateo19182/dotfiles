@@ -1,50 +1,43 @@
 # Dotfiles
 
-Personal configuration for an Omarchy desktop (Lua-based Hyprland configuration and the Omarchy shell), plus the curated skills every coding agent on my machines runs. The agent half used to be a separate `fleet` repository.
+NixOS + Hyprland + Noctalia for the ZBook (`zbook`), plus the curated agent skills and the server's backup tool.
 
-## Installation
+## Layout
+
+| Path | What |
+| --- | --- |
+| `flake.nix` | Inputs (nixos-unstable, home-manager, Noctalia, llm-agents, Hex, ...) and the `zbook` system |
+| `hosts/zbook/` | Hardware, disk layout (disko: LUKS + btrfs), VM test settings |
+| `nixos/` | System: boot, users, desktop session, audio, services, system apps |
+| `home/` | User: packages, shell, Noctalia, Hex, idle, theme, web apps |
+| `.config/` | Plain config files, linked live into `~/.config` (no rebuild needed to edit) |
+| `wallpapers/`, `webapps/icons/`, `bin/` | Assets and small scripts |
+| `agents/`, `install.sh` | Agent skills (until canonfig takes over) |
+| `server-backup/` | The server's restic backup tool (`./install.sh server-backup` on the server) |
+
+## Everyday use
 
 ```bash
-git clone https://github.com/mateo19182/dotfiles.git ~/dotfiles
-cd ~/dotfiles
-./install.sh omarchy agents    # desktop
-./install.sh agents            # any other machine with Claude Code or Codex
-./install.sh --dry-run agents  # print what would change
+nh os switch            # apply changes (alias: rebuild)
+nh os switch --update   # update all inputs, then apply (alias: update)
+nix flake update llm-agents && nh os switch   # just bump the coding agents
 ```
 
-The installer creates individual symlinks. It checks all source files first and backs up existing files or links (beside the original for config files, under `~/.local/state/dotfiles/backups/` for skills). Running it again leaves correct links alone. Keep this repository in place while using its symlinks. Restore an individual setting by removing its symlink and moving the backup back.
+Every switch is a new boot entry; pick an older one in the boot menu to roll back, or `sudo nixos-rebuild switch --rollback`.
+The laptop keeps no backups of its own: important folders sync to the server with Syncthing.
 
-Install Omarchy and the relevant applications first; this repository does not install packages. It relies on Omarchy's packaged defaults, plugins, and theme state. It does not reset your configuration or restart applications.
+Hyprland, ghostty, tmux, git, starship, mise and nvim configs live in `.config/` and are symlinked, so edit them in place and `hyprctl reload`.
+Validate Hyprland edits with `hyprctl configerrors`.
 
-After installing on the desktop:
+## Test in a VM
 
 ```bash
-hyprctl reload
-hyprctl configerrors
-omarchy restart terminal
+nix build .#nixosConfigurations.zbook.config.system.build.vm
+./result/bin/run-zbook-vm
 ```
 
-Omarchy shell settings reload automatically.
+User `m19182`, password `changeme`.
 
-## Included configuration
+## Install
 
-- `hypr/*.lua`: Omarchy bootstrap and overrides for monitors, input, keybindings, appearance, and window rules.
-- `omarchy/shell.json`: shell layout, widgets, and idle settings.
-- `omarchy/plugins/m19182.*`: custom agent usage, VPN, and lock plugins.
-- `ghostty/config`: terminal font, appearance, scrolling, and keybindings.
-- `tmux/tmux.conf`: multiplexer behavior and keybindings.
-- `git/config` and `starship.toml`: personal Git settings and shell prompt.
-- `omarchy/themes/custom-bg/`: custom colors and background image.
-- `agents/`: vendored agent skills, the Claude Code status line, and an inventory of what each agent runs. See [agents/README.md](agents/README.md).
-
-Kitty configuration is not included.
-
-## Personal settings
-
-Review the configuration before using it on another machine, especially monitor scaling, keyboard layout, application bindings, fonts, and Git identity. Current monitor configuration uses preferred modes, automatic placement, and scale 1. Ghostty uses Liberation Mono at size 9. This is a snapshot of personal preferences, rather than a hardware-independent default.
-
-Credentials, runtime state, local databases, and the hooks that agent monitoring tools write into `~/.claude/settings.json`, `~/.codex/hooks.json` or `~/.cursor/hooks.json` do not belong in this repository.
-
-## Custom shell plugins
-
-These plugin snapshots require a compatible current Omarchy/Quickshell installation. The agent widget uses Omarchy usage collectors; the VPN widget uses NetworkManager (`nmcli`) and existing saved profiles. VPN credentials and profiles are not stored here. The lock plugin requires `/etc/pam.d/omarchy-lock-password`; the installer checks this before linking any files. Fingerprint authentication is optional and depends on its separately installed PAM configuration.
+See [INSTALL.md](INSTALL.md).

@@ -1,0 +1,15 @@
+# Language runtimes and npm/pip CLIs. Coding agents come from Nix (llm-agents), not here.
+[tools]
+node = "lts"
+go = "latest"
+rust = "stable"
+python = "3.13"
+uv = "latest"
+pnpm = "latest"
+git-lfs = "latest"
+"npm:@microck/canonfig" = "7.9.0"
+"npm:@opencode/cli" = { version = "latest", postinstall = "cd $MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli && node postinstall.mjs" }
+
+[settings]
+# Prebuilt binaries over source builds; nix-ld makes them run on NixOS.
+python.compile = false

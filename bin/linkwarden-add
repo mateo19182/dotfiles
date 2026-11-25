@@ -1,0 +1,301 @@
+#!/usr/bin/env python3
+"""
+Linkwarden TUI - Interactive link adding with collection selection
+Usage: linkwarden-add [url] [--refresh]
+If no URL is provided, it reads from clipboard or prompts for one.
+"""
+
+import os
+import sys
+import json
+import urllib.request
+import urllib.error
+import subprocess
+import tempfile
+import time
+import argparse
+
+CONFIG_FILE = os.path.expanduser("~/.config/linkwarden/config.env")
+CACHE_DIR = os.path.expanduser("~/.cache/linkwarden")
+CACHE_FILE = os.path.join(CACHE_DIR, "collections.json")
+
+def load_config():
+    """Load configuration from env file"""
+    config = {}
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE) as f:
+            for line in f:
+                if '=' in line and not line.startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    config[key] = value
+    return config
+
+def load_cached_collections():
+    """Load collections from cache file if it exists"""
+    if not os.path.exists(CACHE_FILE):
+        return None, None
+    try:
+        with open(CACHE_FILE, 'r') as f:
+            cached = json.load(f)
+            return cached.get('collections', []), cached.get('timestamp', 0)
+    except (json.JSONDecodeError, IOError):
+        return None, None
+
+def save_collections_cache(collections):
+    """Save collections to cache file"""
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_data = {
+        'timestamp': int(time.time()),
+        'collections': collections
+    }
+    with open(CACHE_FILE, 'w') as f:
+        json.dump(cache_data, f, indent=2)
+
+def is_cache_valid():
+    """Check if cache file exists"""
+    return os.path.exists(CACHE_FILE)
+
+def format_age(timestamp):
+    """Format timestamp into human-readable age"""
+    if not timestamp:
+        return "unknown"
+    age = int(time.time()) - timestamp
+    if age < 60:
+        return f"{age}s ago"
+    elif age < 3600:
+        return f"{age // 60}m ago"
+    elif age < 86400:
+        return f"{age // 3600}h ago"
+    else:
+        return f"{age // 86400}d ago"
+
+def get_collections(force_refresh=False):
+    """Fetch all collections from Linkwarden, using cache if available"""
+    # Try cache first if not forcing refresh
+    if not force_refresh:
+        cached_collections, timestamp = load_cached_collections()
+        if cached_collections is not None:
+            age_str = format_age(timestamp)
+            print(f"📦 Using cached collections ({age_str})")
+            return cached_collections
+    
+    # Fetch fresh data from API
+    config = load_config()
+    url = config.get('LINKWARDEN_URL', 'https://links.m19182.dev')
+    token = config.get('LINKWARDEN_TOKEN', '')
+    
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Linkwarden-CLI/1.0'
+    }
+    
+    req = urllib.request.Request(
+        f"{url}/api/v1/collections",
+        headers=headers,
+        method='GET'
+    )
+    
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            if isinstance(data, list):
+                collections = data
+            elif isinstance(data, dict):
+                collections = data.get('response') or data.get('data') or data.get('collections', [])
+            else:
+                collections = []
+            # Save to cache
+            save_collections_cache(collections)
+            return collections
+    except Exception as e:
+        # If API fails, try to use cache as fallback
+        cached_collections, _ = load_cached_collections()
+        if cached_collections is not None:
+            print(f"⚠️  API error, using cached collections: {e}", file=sys.stderr)
+            return cached_collections
+        print(f"Error fetching collections: {e}", file=sys.stderr)
+        return []
+
+def add_link(url, collection_id=None):
+    """Add a link to Linkwarden"""
+    config = load_config()
+    api_url = config.get('LINKWARDEN_URL', 'https://links.m19182.dev')
+    token = config.get('LINKWARDEN_TOKEN', '')
+    
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Linkwarden-CLI/1.0'
+    }
+    
+    payload = {'url': url, 'tags': []}
+    if collection_id:
+        payload['collection'] = {'id': int(collection_id)}
+    
+    data = json.dumps(payload).encode('utf-8')
+    
+    req = urllib.request.Request(
+        f"{api_url}/api/v1/links",
+        data=data,
+        headers=headers,
+        method='POST'
+    )
+    
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            return True, result
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        return False, f"HTTP {e.code}: {error_body}"
+    except Exception as e:
+        return False, str(e)
+
+def get_clipboard():
+    """Get content from clipboard"""
+    try:
+        result = subprocess.run(['wl-paste'], capture_output=True, text=True, timeout=2)
+        return result.stdout.strip()
+    except:
+        return None
+
+def is_valid_url(url):
+    """Check if string is a valid URL"""
+    if not url:
+        return False
+    url = url.strip()
+    return url.startswith('http://') or url.startswith('https://')
+
+def prompt_for_url():
+    """Prompt user for URL using standard input"""
+    print("📎 No URL in clipboard")
+    print("")
+    
+    try:
+        url = input("🔗 URL: ").strip()
+        if is_valid_url(url):
+            return url
+        else:
+            print(f"❌ Invalid URL: {url}", file=sys.stderr)
+            return None
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+def select_collection_fzf(collections, url):
+    """Use fzf to select a collection"""
+    if not collections:
+        return None
+    
+    # Sort collections by link count (most links first)
+    sorted_collections = sorted(
+        collections,
+        key=lambda c: c.get('_count', {}).get('links', 0) if isinstance(c, dict) else 0,
+        reverse=True
+    )
+    
+    # Format collections for fzf
+    lines = []
+    for coll in sorted_collections:
+        if isinstance(coll, dict):
+            coll_id = coll.get('id')
+            name = coll.get('name', 'Unnamed')
+            desc = coll.get('description', '')
+            count = coll.get('_count', {}).get('links', 0)
+            
+            # Format: ID | Name | Description | Links count
+            if desc:
+                line = f"{coll_id}\t📁 {name}\t{desc}\t({count} links)"
+            else:
+                line = f"{coll_id}\t📁 {name}\t\t({count} links)"
+            lines.append(line)
+    
+    # Create temp file with collections
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        f.write('\n'.join(lines))
+        temp_file = f.name
+    
+    try:
+        # Run fzf
+        fzf_cmd = [
+            'fzf',
+            '--header', f'Select collection for:\n{url[:80]}{"..." if len(url) > 80 else ""}',
+            '--delimiter', '\t',
+            '--with-nth', '2,3,4',
+            '--preview-window', 'hidden',
+            '--height', '60%',
+            '--border',
+            '--prompt', 'Collection > '
+        ]
+        
+        result = subprocess.run(
+            fzf_cmd,
+            input=open(temp_file).read(),
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            # Extract ID from selected line
+            selected = result.stdout.strip().split('\t')[0]
+            return selected
+        else:
+            return None  # User cancelled
+    finally:
+        os.unlink(temp_file)
+
+def main():
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        description='Add links to Linkwarden with collection selection',
+        usage='%(prog)s [url] [--refresh]'
+    )
+    parser.add_argument('url', nargs='?', help='URL to save (optional, reads from clipboard if not provided)')
+    parser.add_argument('--refresh', '-r', action='store_true', help='Force refresh of collections cache')
+    args = parser.parse_args()
+    
+    # Get URL from argument or clipboard
+    url = args.url
+    if not url:
+        url = get_clipboard()
+    
+    # If no valid URL, prompt for one
+    if not is_valid_url(url):
+        url = prompt_for_url()
+        if url is None:
+            print("❌ Cancelled by user", file=sys.stderr)
+            sys.exit(1)
+    
+    print(f"📎 URL: {url}")
+    print("🔄 Fetching collections...")
+    
+    # Get collections (with cache support)
+    collections = get_collections(force_refresh=args.refresh)
+    
+    if not collections:
+        print("⚠️  No collections found, saving without collection...")
+        collection_id = None
+    else:
+        print(f"🗂️  Found {len(collections)} collections")
+        print("🎯 Opening selector...\n")
+        
+        # Let user select via fzf
+        collection_id = select_collection_fzf(collections, url)
+        
+        if collection_id is None:
+            print("❌ Cancelled by user")
+            sys.exit(0)
+    
+    # Add the link
+    print(f"\n💾 Saving link...")
+    success, result = add_link(url, collection_id)
+    
+    if success:
+        collection_name = result.get('response', {}).get('collection', {}).get('name', 'default')
+        print(f"✅ Link saved successfully to '{collection_name}'!")
+    else:
+        print(f"❌ Failed to save link: {result}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

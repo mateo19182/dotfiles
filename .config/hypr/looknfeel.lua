@@ -1,6 +1,4 @@
--- Change the default Omarchy look'n'feel.
-
--- Keep tiled windows close together with a slim border.
+-- https://wiki.hypr.land/Configuring/Variables/#general
 hl.config({
   general = {
     gaps_in = 0,
@@ -9,7 +7,7 @@ hl.config({
   },
 })
 
--- Personal visual preferences from the pre-Quattro setup.
+-- https://wiki.hypr.land/Configuring/Variables/#decoration
 hl.config({
   decoration = {
     blur = {
@@ -21,15 +19,9 @@ hl.config({
   },
 })
 
+-- https://wiki.hypr.land/Configuring/Variables/#animations
 hl.config({
   animations = {
     enabled = false,
   },
 })
-
--- See https://wiki.hypr.land/Configuring/Basics/Variables/#layout
--- hl.config({
---   layout = {
---     single_window_aspect_ratio = { 1, 1 },
---   },
--- })

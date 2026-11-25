@@ -4,8 +4,6 @@
 #   ./install.sh [--dry-run] <profile>...
 #
 # Profiles:
-#   omarchy   Hyprland, Omarchy shell and plugins, ghostty, tmux, git, starship,
-#             custom theme. Needs an existing Omarchy installation.
 #   agents    Curated agent skills into every skill directory that exists,
 #             plus the Claude Code status line script.
 #   server-backup
@@ -22,7 +20,7 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 DRY_RUN=0
 
 usage() {
-    sed -n '2,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit "${1:-1}"
 }
 
@@ -31,26 +29,13 @@ for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY_RUN=1 ;;
         -h|--help) usage 0 ;;
-        omarchy|agents|server-backup) profiles+=("$arg") ;;
+        agents|server-backup) profiles+=("$arg") ;;
         *) printf 'Unknown argument: %s\n\n' "$arg" >&2; usage ;;
     esac
 done
 [[ ${#profiles[@]} -gt 0 ]] || usage
 
 has_profile() { local p; for p in "${profiles[@]}"; do [[ $p == "$1" ]] && return 0; done; return 1; }
-
-# Paths under .config/ in this repository, linked into $XDG_CONFIG_HOME.
-configs=(
-    hypr/hyprland.lua hypr/monitors.lua hypr/input.lua
-    hypr/bindings.lua hypr/looknfeel.lua hypr/windows.lua
-    omarchy/plugins/m19182.agents
-    omarchy/plugins/m19182.vpn
-    omarchy/plugins/m19182.lock
-    omarchy/shell.json
-    ghostty/config tmux/tmux.conf git/config starship.toml
-    omarchy/themes/custom-bg/colors.toml
-    'omarchy/themes/custom-bg/backgrounds/image (1).png'
-)
 
 # Skill directories the agents profile links into. Only existing directories
 # are used, so an agent that is not installed is skipped. Override with
@@ -85,27 +70,6 @@ link() {
     run ln -s -- "$src" "$dest"
     printf 'Linked: %s -> %s\n' "$dest" "$src"
 }
-
-# --- omarchy ---------------------------------------------------------------
-
-if has_profile omarchy; then
-    printf '\n== omarchy\n'
-    # The custom lock plugin needs Omarchy's packaged password PAM helper.
-    if [[ ! -f /etc/pam.d/omarchy-lock-password ]]; then
-        printf 'Missing Omarchy lock PAM helper; install a compatible Omarchy version first.\n' >&2
-        exit 1
-    fi
-    # Check the entire source set before touching any destination.
-    for config in "${configs[@]}"; do
-        if [[ ! -e "$DOTFILES_DIR/.config/$config" ]]; then
-            printf 'Missing source: %s\n' "$DOTFILES_DIR/.config/$config" >&2
-            exit 1
-        fi
-    done
-    for config in "${configs[@]}"; do
-        link "$DOTFILES_DIR/.config/$config" "$CONFIG_DIR/$config"
-    done
-fi
 
 # --- agents ----------------------------------------------------------------
 
@@ -168,8 +132,3 @@ fi
 
 printf '\nDone. Replaced files were backed up beside their originals; replaced skills under %s.\n' \
     "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/backups"
-if has_profile omarchy; then
-    printf 'Validate Hyprland: hyprctl reload && hyprctl configerrors\n'
-    printf 'Reload terminal settings: omarchy restart terminal\n'
-    printf 'Omarchy shell settings reload automatically.\n'
-fi

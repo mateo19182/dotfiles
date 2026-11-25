@@ -1,0 +1,3 @@
+-- Noctalia, Hex, hypridle, udiskie and syncthing start as systemd user services
+-- with the graphical session; add anything without a unit here, e.g.:
+-- hl.on("hyprland.start", function() hl.exec_cmd(o.launch("some-daemon")) end)
