@@ -13,8 +13,9 @@ hl.env("XDG_SESSION_TYPE", "wayland")
 hl.env("XDG_CURRENT_DESKTOP", "Hyprland")
 hl.env("XDG_SESSION_DESKTOP", "Hyprland")
 
-local active_border = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 }
-local inactive_border = "rgba(595959aa)"
+-- Neutral until Noctalia writes palette colors (hypr/noctalia.lua) on first start.
+local active_border = "rgb(b0b0b0)"
+local inactive_border = "rgb(1c1c1c)"
 
 hl.config({
   general = {

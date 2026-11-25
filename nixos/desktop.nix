@@ -88,7 +88,7 @@
     ];
     fontconfig.defaultFonts = {
       monospace = [ "JetBrainsMono Nerd Font" ];
-      sansSerif = [ "Noto Sans" ];
+      sansSerif = [ "JetBrainsMono Nerd Font" ];
       serif = [ "Noto Serif" ];
       emoji = [ "Noto Color Emoji" ];
     };

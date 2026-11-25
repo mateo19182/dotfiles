@@ -39,7 +39,11 @@
           border_width = 1.0;
           launcher_placement = "floating";
         };
-        launcher.layout = "simple";
+        launcher = {
+          layout = "simple";
+          # Icons only; the names were cut off. Hover shows them.
+          category_icons_only = true;
+        };
       };
 
       theme = {
@@ -58,6 +62,14 @@
           enable_community_templates = false;
         };
       };
+
+      weather = {
+        enabled = true;
+        unit = "celsius";
+        effects = false;
+      };
+      # Resolved from your IP; set `address = "City"` instead if a VPN puts you elsewhere.
+      location.auto_locate = true;
 
       wallpaper = {
         enabled = true;
@@ -81,7 +93,10 @@
           "launcher"
           "workspaces"
         ];
-        center = [ "clock" ];
+        center = [
+          "clock"
+          "weather"
+        ];
         end = [
           "tray"
           "rylos/tailnet:bar"
@@ -106,6 +121,7 @@
           labels_only_when_occupied = false;
         };
         network.show_label = false;
+        weather.show_condition = false;
         battery.peek = true;
       };
 

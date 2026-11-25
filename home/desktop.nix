@@ -80,6 +80,10 @@ in
 
   gtk = {
     enable = true;
+    font = {
+      name = "JetBrainsMono Nerd Font";
+      size = 10;
+    };
     theme = {
       name = "Adwaita-dark";
       package = pkgs.gnome-themes-extra;
