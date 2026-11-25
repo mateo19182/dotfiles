@@ -27,9 +27,16 @@
       memorySize = 8192;
       cores = 6;
       diskSize = 20480;
+      # home-manager links into ~/dotfiles; give the VM this checkout there.
+      sharedDirectories.dotfiles = {
+        source = "/home/m19182/dotfiles-nixos";
+        target = "/home/m19182/dotfiles";
+      };
+      # Software-rendered so it runs anywhere; view it with a VNC client on :5905.
       qemu.options = [
-        "-device virtio-vga-gl"
-        "-display gtk,gl=on"
+        "-vga none"
+        "-device virtio-vga"
+        "-display vnc=127.0.0.1:5"
       ];
     };
   };

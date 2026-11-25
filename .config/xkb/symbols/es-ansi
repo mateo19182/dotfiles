@@ -1,0 +1,12 @@
+// Spanish layout adapted for ANSI (US) keyboards without the <> key.
+default partial alphanumeric_keys
+xkb_symbols "basic" {
+    include "es(basic)"
+    name[Group1] = "Spanish (ANSI)";
+
+    // Key above Enter: < > instead of ç (ANSI boards lack the <> key)
+    key <BKSL> { [ less, greater, braceright, dead_breve ] };
+
+    // ç on AltGr+c
+    key <AB03> { [ c, C, ccedilla, Ccedilla ] };
+};

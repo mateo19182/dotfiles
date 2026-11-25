@@ -1,6 +1,7 @@
 {
   config,
   inputs,
+  lib,
   pkgs,
   user,
   ...
@@ -168,7 +169,29 @@ in
     "nvim".source = link ".config/nvim";
   };
 
+  # Spanish layout for ANSI keyboards, used as kb_layout in hypr/input.lua.
+  xdg.configFile."xkb/symbols/es-ansi".source = link ".config/xkb/symbols/es-ansi";
+
   home.file.".local/bin/linkwarden-add".source = link "bin/linkwarden-add";
+
+  # Auto-login never unlocks a password-protected keyring, so use an unencrypted
+  # one (the disk is LUKS-encrypted), as Omarchy did. Existing keyrings are kept.
+  home.activation.defaultKeyring = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    dir="$HOME/.local/share/keyrings"
+    run mkdir -p "$dir"
+    if [ ! -f "$dir/Default_keyring.keyring" ]; then
+      run install -m600 /dev/stdin "$dir/Default_keyring.keyring" <<EOF
+    [keyring]
+    display-name=Default keyring
+    ctime=$(date +%s)
+    mtime=0
+    lock-on-idle=false
+    lock-after=false
+    EOF
+    fi
+    [ -f "$dir/default" ] || run install -m644 /dev/stdin "$dir/default" <<< "Default_keyring"
+    run chmod 700 "$dir"
+  '';
 
   programs = {
     home-manager.enable = true;
