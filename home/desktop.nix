@@ -1,7 +1,6 @@
 {
   inputs,
   pkgs,
-  user,
   ...
 }:
 let
@@ -28,7 +27,7 @@ let
 in
 {
   imports = [
-    inputs.noctalia.homeModules.default
+    ./noctalia.nix
     inputs.hex.homeManagerModules.default
   ];
 
@@ -42,49 +41,6 @@ in
     adwaita-icon-theme
     yaru-theme
   ];
-
-  programs.noctalia = {
-    enable = true;
-    systemd.enable = true;
-    extraPackages = with pkgs; [
-      gpu-screen-recorder
-      networkmanager
-      networkmanagerapplet
-      tailscale
-      libsecret
-      xdg-utils
-    ];
-    settings = {
-      theme.mode = "dark";
-      wallpaper = {
-        enabled = true;
-        default.path = "${user.dotfiles}/wallpapers/custom-bg.png";
-      };
-      # Plugins pinned through flake.lock; `nix flake update` moves them.
-      plugins = {
-        auto_update = "none";
-        source = [
-          {
-            name = "official";
-            kind = "path";
-            location = "${inputs.noctalia-official-plugins}";
-            enabled = true;
-          }
-          {
-            name = "community";
-            kind = "path";
-            location = "${inputs.noctalia-community-plugins}";
-            enabled = true;
-          }
-        ];
-        enabled = [
-          "ayagmar/headroom"
-          "andrewdems/vpn-manager"
-          "rylos/tailnet"
-        ];
-      };
-    };
-  };
 
   programs.hex = {
     enable = true;
