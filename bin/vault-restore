@@ -1,0 +1,64 @@
+#!/usr/bin/env nix-shell
+#!nix-shell -i python3 -p "python3.withPackages (p: [ p.pykeepass ])"
+"""First boot: puts the files from vault.kdbx back where pre-install-vault found them.
+
+Never overwrites. Repo secrets (~/Work/...) are only written once that folder exists,
+so clone the repos and run this again. Safe to run as often as you like.
+"""
+import getpass, os, subprocess, sys
+from pathlib import Path
+from pykeepass import PyKeePass
+
+HOME = Path.home()
+DB = Path(sys.argv[1]) if len(sys.argv) > 1 else HOME / "Documents/misc/vault.kdbx"
+SKIP_GROUPS = {"Obsidian"}  # reference only; nothing to put back
+
+
+def main():
+    kp = PyKeePass(str(DB), password=getpass.getpass(f"Master password for {DB}: "))
+    waiting = []
+    for e in kp.entries:
+        if e.group.name in SKIP_GROUPS:
+            continue
+        files = {a.filename: a for a in e.attachments}
+        for line in (e.notes or "").splitlines():
+            name, _, target = line.partition(" -> ")
+            if name not in files:
+                continue
+            path = HOME / target.removeprefix("~/")
+            if path.exists():
+                if path.read_bytes() != files[name].data:
+                    print(f"differs, left alone: {path}")
+                continue
+            if e.group.name == "Work secrets" and not path.parent.is_dir():
+                waiting.append(target)
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if path.parent == HOME / ".ssh":
+                path.parent.chmod(0o700)
+            path.write_bytes(files[name].data)
+            path.chmod(0o644 if name.endswith(".pub") else 0o600)
+            print(f"restored {target}")
+
+    secrets = HOME / ".config/secrets.env"
+    dd = {e.username: e.password for e in kp.entries if e.title.startswith("Datadog ")}
+    if dd and not secrets.exists():
+        secrets.parent.mkdir(parents=True, exist_ok=True)
+        secrets.write_text("".join(f"{k}={v}\n" for k, v in dd.items()))
+        secrets.chmod(0o600)
+        print("restored ~/.config/secrets.env")
+
+    beszel = kp.find_entries(title="Beszel agent token", first=True)
+    if beszel and not Path("/etc/beszel/agent.env").exists():
+        subprocess.run(["sudo", "install", "-Dm600", "/dev/stdin", "/etc/beszel/agent.env"],
+                       input=f"TOKEN={beszel.password}\n", text=True, check=True)
+        print("restored /etc/beszel/agent.env (then: sudo systemctl restart beszel-agent)")
+
+    if waiting:
+        print(f"\n{len(waiting)} repo files wait for their folder; clone the repos and run this again:")
+        for t in waiting:
+            print("  " + t)
+
+
+if __name__ == "__main__":
+    main()

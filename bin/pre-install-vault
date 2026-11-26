@@ -1,0 +1,108 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = ["pykeepass"]
+# ///
+"""Run on the old system: collects keys, tokens and untracked secret files into ~/Documents/misc/vault.kdbx
+(a Syncthing folder). Each entry's notes say where its files go; bin/vault-restore puts them back.
+"""
+import getpass, hashlib, os, re, subprocess, sys
+from pathlib import Path
+from pykeepass import PyKeePass, create_database
+
+HOME = Path.home()
+DB = HOME / "Documents/misc/vault.kdbx"
+SKIP_DIRS = {"node_modules", ".git", ".venv", "venv", ".hermit", "site-packages", ".smokeenv", "build", "__pycache__"}
+SKIP_SUFFIX = (".example", ".sample", ".template", ".dist")
+
+
+def untracked(path: Path) -> bool:
+    r = subprocess.run(["git", "-C", str(path.parent), "ls-files", "--error-unmatch", path.name],
+                       capture_output=True)
+    return r.returncode != 0
+
+
+def work_secrets():
+    for root, dirs, files in os.walk(HOME / "Work"):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".venv")]
+        for f in files:
+            p = Path(root) / f
+            if f.endswith(SKIP_SUFFIX):
+                continue
+            if f == ".env" or f.startswith(".env.") or f.endswith(".tfvars") or f.endswith(".ovpn") \
+                    or (p.parent.name == "secrets" and f.endswith((".pem", ".key"))):
+                if untracked(p):
+                    yield p
+
+
+def plan():
+    """(group, title, [files], {field: value})"""
+    ssh = HOME / ".ssh"
+    yield "SSH", "id_rsa", [ssh / "id_rsa", ssh / "id_rsa.pub"], {}
+    yield "SSH", "infra-key", [ssh / "infra-key"], {}
+    yield "SSH", "deepfake-zepolabs", [ssh / "deepfake-zepolabs.pem"], {}
+    yield "SSH", "ssh config", [ssh / "config"], {}
+    yield "AWS", "aws cli", [HOME / ".aws/config", HOME / ".aws/credentials"], {}
+    yield "AWS", "AWS VPN Client profile", [HOME / ".config/aws-vpn-client/zepo-aws.ovpn"], {}
+    yield "Certs", "google-meet-sso", [HOME / "google-meet-sso-cert.pem", HOME / "google-meet-sso-key.pem"], {}
+    yield "Tokens", "tribo .mcp.json", [HOME / "Work/tribo/.mcp.json"], {}
+    obs = HOME / "Documents/obsidian-19182"
+    yield "Obsidian", "github recovery codes", [obs / "github-recovery-codes.txt"], {}
+    yield "Obsidian", "keys.export + private.key", [obs / "keys.export", obs / "private.key"], {}
+
+    bashrc = (HOME / ".bashrc").read_text()
+    for name in ("DD_API_KEY", "DD_APP_KEY"):
+        m = re.search(rf"^export {name}=['\"]?([^'\"\n]+)", bashrc, re.M)
+        if m:
+            yield "Tokens", f"Datadog {name}", [], {"password": m.group(1), "username": name}
+    unit = subprocess.run(["systemctl", "cat", "beszel-agent.service"], capture_output=True, text=True).stdout
+    m = re.search(r"TOKEN=([^\"\s]+)", unit)
+    if m:
+        yield "Tokens", "Beszel agent token", [], {"password": m.group(1), "url": "https://stats.m19182.dev"}
+
+    for p in sorted(work_secrets()):
+        rel = p.relative_to(HOME / "Work")
+        yield "Work secrets", str(rel), [p], {}
+
+
+def main():
+    if DB.exists():
+        sys.exit(f"{DB} already exists; move it away first")
+    items = list(plan())
+    missing = [f for _, _, files, _ in items for f in files if not f.is_file()]
+    if missing:
+        sys.exit("missing: " + ", ".join(map(str, missing)))
+
+    pw = getpass.getpass("New KeePass master password: ")
+    if not pw or pw != getpass.getpass("Again: "):
+        sys.exit("passwords empty or different")
+
+    kp = create_database(str(DB), password=pw)
+    groups = {}
+    expected = {}
+    for group, title, files, fields in items:
+        g = groups.get(group) or groups.setdefault(group, kp.add_group(kp.root_group, group))
+        notes = "\n".join(f"{f.name} -> ~/{f.relative_to(HOME)}" for f in files)
+        e = kp.add_entry(g, title, fields.get("username", ""), fields.get("password", ""),
+                         url=fields.get("url"), notes=notes or None)
+        for f in files:
+            data = f.read_bytes()
+            e.add_attachment(kp.add_binary(data), f.name)
+            expected[(group, title, f.name)] = hashlib.sha256(data).hexdigest()
+    kp.save()
+
+    # Reopen and compare every attachment with the original file.
+    kp = PyKeePass(str(DB), password=pw)
+    bad = 0
+    for e in kp.entries:
+        for a in e.attachments:
+            if hashlib.sha256(a.data).hexdigest() != expected.pop((e.group.name, e.title, a.filename), None):
+                bad += 1
+                print("MISMATCH", e.title, a.filename)
+    bad += len(expected)
+    print(f"{len(kp.entries)} entries in {DB}; {'all attachments verified' if not bad else f'{bad} problems'}")
+    for group in groups:
+        print(f"  {group}: {len(kp.find_groups(name=group, first=True).entries)}")
+
+
+if __name__ == "__main__":
+    main()
