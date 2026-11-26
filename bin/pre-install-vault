@@ -5,7 +5,7 @@
 """Run on the old system: collects keys, tokens and untracked secret files into ~/Documents/misc/vault.kdbx
 (a Syncthing folder). Each entry's notes say where its files go; bin/vault-restore puts them back.
 """
-import getpass, hashlib, os, re, subprocess, sys
+import hashlib, os, re, subprocess, sys
 from pathlib import Path
 from pykeepass import PyKeePass, create_database
 
@@ -72,11 +72,8 @@ def main():
     if missing:
         sys.exit("missing: " + ", ".join(map(str, missing)))
 
-    pw = getpass.getpass("New KeePass master password: ")
-    if not pw or pw != getpass.getpass("Again: "):
-        sys.exit("passwords empty or different")
-
-    kp = create_database(str(DB), password=pw)
+    # No master password for now: KeePassXC opens it with a plain "Unlock" click.
+    kp = create_database(str(DB), password=None)
     groups = {}
     expected = {}
     for group, title, files, fields in items:
@@ -91,7 +88,7 @@ def main():
     kp.save()
 
     # Reopen and compare every attachment with the original file.
-    kp = PyKeePass(str(DB), password=pw)
+    kp = PyKeePass(str(DB), password=None)
     bad = 0
     for e in kp.entries:
         for a in e.attachments:

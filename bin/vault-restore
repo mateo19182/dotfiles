@@ -5,7 +5,7 @@
 Never overwrites. Repo secrets (~/Work/...) are only written once that folder exists,
 so clone the repos and run this again. Safe to run as often as you like.
 """
-import getpass, os, subprocess, sys
+import subprocess, sys
 from pathlib import Path
 from pykeepass import PyKeePass
 
@@ -15,7 +15,7 @@ SKIP_GROUPS = {"Obsidian"}  # reference only; nothing to put back
 
 
 def main():
-    kp = PyKeePass(str(DB), password=getpass.getpass(f"Master password for {DB}: "))
+    kp = PyKeePass(str(DB), password=None)
     waiting = []
     for e in kp.entries:
         if e.group.name in SKIP_GROUPS:
