@@ -34,24 +34,8 @@ It asks you to type `WIPE`, then the disk password, then your login password.
 
 ## 3. First boot
 
-The disk password unlocks and logs you into Hyprland. In a terminal (Super+Return):
-
-```bash
-# accept the new device in the server's Syncthing page, wait for ~/Documents to sync
-~/dotfiles/bin/vault-restore          # again after cloning repos, for their .env files
-sudo systemctl restart beszel-agent
-mise install
-sudo tailscale up
-mullvad account login
-```
-
-Then:
-
-- KeePassXC: open `~/Documents/misc/vault.kdbx`; Database settings → Secret Service, expose a group.
-- AWS VPN Client: File → Manage Profiles → Add `~/.config/aws-vpn-client/zepo-aws.ovpn`, connect once.
-- Noctalia: Settings → Bar, add Headroom, VPN Manager and Tailnet.
-- `hex status` should show the model ready; test F9.
-- `cd ~/dotfiles && git checkout master && git merge nixos && git push`
+The disk password unlocks and logs you into Hyprland. Open a terminal (Super+Return), run `claude`
+(log in), and say: **follow ~/dotfiles/FIRST-BOOT.md**. It does the rest and asks you when it needs you.
 
 ## If something goes wrong
 
