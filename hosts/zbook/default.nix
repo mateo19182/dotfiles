@@ -31,7 +31,7 @@
     cores = 6;
     diskSize = 20480;
     sharedDirectories.dotfiles = {
-      source = "/home/m19182/dotfiles-nixos";
+      source = "/home/m19182/dotfiles";
       target = "/home/m19182/dotfiles";
     };
     qemu.options = [

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Run on the old system before wiping. Copies what isn't on a server or in git to DEST.
+# Run on the old system before wiping. Packs what isn't on a server or in git into DIR/zbook-backup.tar.
+# A tar keeps permissions and symlinks even on an exFAT disk.
 #
-#   pre-install-backup /run/media/m19182/<disk>/zbook   # external disk
-#   pre-install-backup server:/srv/backups/zbook        # rsync over ssh
+#   pre-install-backup /run/media/m19182/PortableSSD
 set -euo pipefail
 
-dest="${1:?usage: pre-install-backup DEST (local path or host:path)}"
+dest="${1:?usage: pre-install-backup DIR}"
 cd "$HOME"
 
 # Secrets that live in ~/.bashrc today; the new bash sources this file.
@@ -18,9 +18,11 @@ systemctl cat beszel-agent.service | grep -oE 'TOKEN=[^"]+' > .local/share/pre-i
 sudo cp -a /etc/NetworkManager/system-connections .local/share/pre-install/
 sudo chown -R "$USER:" .local/share/pre-install
 
-rsync -aR --info=progress2 \
-  --exclude node_modules/ --exclude .venv/ --exclude venv/ --exclude target/ --exclude __pycache__/ \
+tar -cf "$dest/zbook-backup.tar" \
+  --checkpoint=20000 --checkpoint-action='ttyout=%{}T\r' \
+  --exclude=node_modules --exclude=.venv --exclude=venv --exclude=target --exclude=__pycache__ \
   Work Documents Music Pictures "Bitwig Studio" \
   .ssh .gnupg .aws .claude .codex .config/secrets.env .config/aws-vpn-client .config/linkwarden \
-  .local/share/pre-install \
-  "$dest/"
+  .local/share/pre-install
+echo
+tar -tf "$dest/zbook-backup.tar" | wc -l | xargs echo "files in backup:"
