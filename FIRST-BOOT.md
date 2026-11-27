@@ -22,11 +22,16 @@ Ask before every `sudo` command, and before any push. Skip a step that's already
    then run `vault-restore` again so their `.env` files come back. It lists any that still wait for a folder.
 8. **KeePassXC.** **User:** click Unlock (no password), then Database → Database Settings → Secret Service
    → expose the root group, so apps can store passwords.
-9. **AWS VPN Client.** **User:** File → Manage Profiles → Add `~/.config/aws-vpn-client/zepo-aws.ovpn`,
+9. **Agent config.** `git clone git@github.com:mateo19182/agents-config.git ~/.canonfig`, then
+   `canonfig doctor --no-input` (credentials must pass). **User:** run `canonfig secrets set huly-mcp-authorization`
+   and paste `Bearer <Huly MCP token>` (hidden input). Then `canonfig sync --plan`, show the plan, and
+   `canonfig sync --apply` after a yes. Each agent signs in to Executor the first time it uses it.
+   If the server is already the canonfig Source, enroll as a Follower instead (see `~/.canonfig/README.md`).
+10. **AWS VPN Client.** **User:** File → Manage Profiles → Add `~/.config/aws-vpn-client/zepo-aws.ovpn`,
    then connect once and finish the SSO login.
-10. **Checks.** `hex status` (model ready), `systemctl --user --failed` and `systemctl --failed` (both empty).
+11. **Checks.** `hex status` (model ready), `systemctl --user --failed` and `systemctl --failed` (both empty).
     Report anything that isn't fine.
-11. **Branch.** Ask the user, then: `git -C ~/dotfiles checkout master && git -C ~/dotfiles merge nixos`,
+12. **Branch.** Ask the user, then: `git -C ~/dotfiles checkout master && git -C ~/dotfiles merge nixos`,
     and push only after a yes.
 
 When done, give the user a short list: what's finished, and anything still for them.

@@ -4,8 +4,6 @@
 #   ./install.sh [--dry-run] <profile>...
 #
 # Profiles:
-#   agents    Curated agent skills into every skill directory that exists,
-#             plus the Claude Code status line script.
 #   server-backup
 #             The server's restic backup tool and its systemd user units.
 #             Config and keys stay in ~/.config/server-backup (not in Git).
@@ -20,7 +18,7 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
 DRY_RUN=0
 
 usage() {
-    sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit "${1:-1}"
 }
 
@@ -29,19 +27,13 @@ for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY_RUN=1 ;;
         -h|--help) usage 0 ;;
-        agents|server-backup) profiles+=("$arg") ;;
+        server-backup) profiles+=("$arg") ;;
         *) printf 'Unknown argument: %s\n\n' "$arg" >&2; usage ;;
     esac
 done
 [[ ${#profiles[@]} -gt 0 ]] || usage
 
 has_profile() { local p; for p in "${profiles[@]}"; do [[ $p == "$1" ]] && return 0; done; return 1; }
-
-# Skill directories the agents profile links into. Only existing directories
-# are used, so an agent that is not installed is skipped. Override with
-# SKILL_DIRS="dir1:dir2" to target others, such as ~/.cursor/skills.
-default_skill_dirs="$HOME/.claude/skills:$HOME/.agents/skills"
-IFS=: read -r -a skill_dirs <<< "${SKILL_DIRS:-$default_skill_dirs}"
 
 run() {
     if (( DRY_RUN )); then printf '  [dry-run] %s\n' "$*"; else "$@"; fi
@@ -71,47 +63,6 @@ link() {
     printf 'Linked: %s -> %s\n' "$dest" "$src"
 }
 
-# --- agents ----------------------------------------------------------------
-
-if has_profile agents; then
-    printf '\n== agents\n'
-    link "$DOTFILES_DIR/agents/claude/statusline-command.sh" "$HOME/.claude/statusline-command.sh"
-    # One global context file: Claude Code only reads ~/.claude/CLAUDE.md at user level.
-    link "$DOTFILES_DIR/agents/AGENTS.md" "$HOME/.claude/CLAUDE.md"
-    [[ -d "$HOME/.codex" ]] && link "$DOTFILES_DIR/agents/AGENTS.md" "$HOME/.codex/AGENTS.md"
-    # Claude Code skips AGENTS.md wherever a CLAUDE.md exists; load both. Merged
-    # into settings.json rather than linked, because other tools write there too.
-    if (( DRY_RUN )); then
-        printf 'Would set Claude Code to load CLAUDE.md and AGENTS.md\n'
-    else
-        python3 - "$HOME/.claude/settings.json" <<'PY'
-import json, os, sys
-path = sys.argv[1]
-settings = json.load(open(path)) if os.path.exists(path) else {}
-settings.setdefault("pluginConfigs", {})["cc-plugin-agents-md@builtin"] = {
-    "options": {"instructionFiles": "claude-md-and-agents-md"}}
-with open(path, "w") as f:
-    json.dump(settings, f, indent=2)
-    f.write("\n")
-PY
-    fi
-    mapfile -t skills < <(find "$DOTFILES_DIR/agents/skills" -mindepth 2 -maxdepth 2 -type d | sort)
-    # Replaced skill copies go to a state directory, not beside the link: an
-    # agent would otherwise load <skill>.backup.<ts>/SKILL.md as a second skill.
-    backup_root="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/backups/$(date +%Y%m%d-%H%M%S)"
-    for dir in "${skill_dirs[@]}"; do
-        if [[ ! -d "$dir" ]]; then
-            printf 'Skipping %s (agent not installed)\n' "$dir"
-            continue
-        fi
-        BACKUP_DIR="$backup_root/$(basename -- "$(dirname -- "$dir")")"
-        for skill in "${skills[@]}"; do
-            link "$skill" "$dir/$(basename -- "$skill")"
-        done
-        BACKUP_DIR=""
-    done
-fi
-
 # --- server-backup ---------------------------------------------------------
 
 if has_profile server-backup; then
@@ -130,5 +81,5 @@ fi
 
 # --- next steps ------------------------------------------------------------
 
-printf '\nDone. Replaced files were backed up beside their originals; replaced skills under %s.\n' \
+printf '\nDone. Replaced files were backed up under %s.\n' \
     "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/backups"

@@ -7,7 +7,7 @@ python = "3.13"
 uv = "latest"
 pnpm = "latest"
 git-lfs = "latest"
-"npm:@microck/canonfig" = "7.9.0"
+"npm:@microck/canonfig" = { version = "7.9.0", allow_low_downloads = true }
 "npm:@opencode/cli" = { version = "latest", postinstall = "cd $MISE_TOOL_INSTALL_PATH/node_modules/@opencode/cli && node postinstall.mjs" }
 
 [settings]

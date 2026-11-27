@@ -1,6 +1,6 @@
 # Dotfiles
 
-NixOS + Hyprland + Noctalia for the ZBook (`zbook`), plus the curated agent skills and the server's backup tool.
+NixOS + Hyprland + Noctalia for the ZBook (`zbook`), plus the server's backup tool. Agent config (instructions, skills, MCP) lives in the private `agents-config` repo at `~/.canonfig`, managed by canonfig.
 
 ## Layout
 
@@ -12,8 +12,7 @@ NixOS + Hyprland + Noctalia for the ZBook (`zbook`), plus the curated agent skil
 | `home/` | User: packages, shell, Noctalia, Hex, idle, theme, web apps |
 | `.config/` | Plain config files, linked live into `~/.config` (no rebuild needed to edit) |
 | `wallpapers/`, `webapps/icons/`, `bin/` | Assets and small scripts |
-| `agents/`, `install.sh` | Agent skills (until canonfig takes over) |
-| `server-backup/` | The server's restic backup tool (`./install.sh server-backup` on the server) |
+| `server-backup/`, `install.sh` | The server's restic backup tool (`./install.sh server-backup` on the server) |
 
 ## Everyday use
 
