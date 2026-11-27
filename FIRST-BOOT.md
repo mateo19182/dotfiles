@@ -34,4 +34,5 @@ Ask before every `sudo` command, and before any push. Skip a step that's already
    then connect once and finish the SSO login.
 11. **Checks.** `hex status` (model ready), `systemctl --user --failed` and `systemctl --failed` (both empty).
     Report anything that isn't fine.
+
 When done, give the user a short list: what's finished, and anything still for them.
