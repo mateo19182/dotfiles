@@ -6,7 +6,9 @@
     content = {
       type = "gpt";
       partitions = {
+        # Own labels, so a second disk with an older install (labels disk-main-*) can't be mistaken for this one.
         ESP = {
+          label = "zbook-boot";
           size = "2G";
           type = "EF00";
           content = {
@@ -17,10 +19,11 @@
           };
         };
         luks = {
+          label = "zbook-luks";
           size = "100%";
           content = {
             type = "luks";
-            name = "root";
+            name = "cryptroot";
             settings.allowDiscards = true;
             content = {
               type = "btrfs";
