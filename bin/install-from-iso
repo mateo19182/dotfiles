@@ -11,7 +11,12 @@ trap 'echo; echo "!!! INSTALL FAILED (see the error above). Run this script agai
 repo=/tmp/dotfiles
 disk=${1:-/dev/nvme0n1}
 user=m19182
-export NIX_CONFIG="experimental-features = nix-command flakes"
+# The same binary caches as nixos/base.nix (the ISO doesn't know them, so it would compile
+# the agents, Hex and Noctalia itself), and few parallel builds: the ISO runs from RAM.
+export NIX_CONFIG="experimental-features = nix-command flakes
+extra-substituters = https://nix-community.cachix.org https://noctalia.cachix.org https://cache.numtide.com
+extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
+max-jobs = 2"
 
 [[ $EUID == 0 ]] || { echo "run as root (sudo -i)"; exit 1; }
 [[ -d $repo ]] || git clone https://github.com/mateo19182/dotfiles.git "$repo"
@@ -33,7 +38,10 @@ sed "s|/dev/nvme0n1|$disk|" "$repo/hosts/zbook/disko.nix" > /tmp/disko.nix
 nix run github:nix-community/disko/latest -- --mode "$mode" /tmp/disko.nix
 
 echo "== install (log: /root/install.log on the new system)"
-mkdir -p /mnt/root
+# Build on the disk with its swapfile on, not in the ISO's RAM.
+swapon /mnt/.swapvol/swapfile 2>/dev/null || true
+mkdir -p /mnt/root /mnt/var/tmp/build
+export TMPDIR=/mnt/var/tmp/build
 nixos-install --flake "$repo#zbook" --no-root-passwd 2>&1 | tee /mnt/root/install.log
 
 echo "== repo into place for home-manager's links"
