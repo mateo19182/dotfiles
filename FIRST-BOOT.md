@@ -24,14 +24,26 @@ Ask before every `sudo` command, and before any push. Skip a step that's already
    (Secret Service). Check: `echo ok | secret-tool store --label=check check 1 && secret-tool lookup check 1 && secret-tool clear check 1` prints `ok`.
 9. **Agent config.** canonfig Follower of `m19182-server` (README of the `agents-config` repo).
    `canonfig doctor --no-input`: credentials must pass (needs KeePassXC unlocked from step 8).
-   On the server, create an invitation (leave the Omarchy laptop's follower alone while it still boots):
+   On the server, `canonfig source list`: revoke any older `zbook`/laptop follower the user no longer boots, then create an invitation:
    `canonfig source invite --endpoint https://m19182.tail5196fa.ts.net:17342 --output ~/canonfig-invite --expires 15m --group canonfig:secrets`.
    Copy it here with `scp` (never print it), then `canonfig follower enroll --stdin --name zbook < canonfig-invite`,
    delete the file on both machines, `canonfig sync --plan`, show it, `canonfig sync --apply` after a yes,
    and `canonfig schedule set daily@09:00`. Each agent signs in to Executor the first time it uses it.
-10. **AWS VPN Client.** **User:** File → Manage Profiles → Add `~/.config/aws-vpn-client/zepo-aws.ovpn`,
+10. **Logins.** **User** signs in; check each one afterwards.
+    - GitHub CLI: `gh auth login` (GitHub.com, SSH, browser); check `gh auth status`.
+    - Agents: `claude` (`/login`), `codex login`, `opencode auth login`, `cursor-agent login`, `amp login`, `pi` (`/login`).
+      Executor asks for a browser sign-in the first time each agent uses it.
+    - T3 Code: open it from the launcher. It drives the agent CLIs above, so they must be signed in first;
+      check each provider shows as ready in its settings.
+    - AWS: `aws sso login --profile <profile>` (profiles in `~/.aws/config`), or `awsp <profile>`.
+    - Chrome: sign in to Google and turn on sync (bookmarks, passwords, extensions). The web apps use this profile.
+    - Apps, opened from the launcher: Slack, Telegram, Signal (link from the phone), Discord, Spotify,
+      Obsidian (open the folder `~/Documents/obsidian-19182`), Bitwig (account sign-in), Claude Desktop, ChatGPT, Steam.
+11. **AWS VPN Client.** **User:** File → Manage Profiles → Add `~/.config/aws-vpn-client/zepo-aws.ovpn`,
    then connect once and finish the SSO login.
-11. **Checks.** `hex status` (model ready), `systemctl --user --failed` and `systemctl --failed` (both empty).
+12. **Checks.** `hex status` (model ready), `systemctl --user --failed` and `systemctl --failed` (both empty).
     Report anything that isn't fine.
+13. **Old devices.** **User**, once this laptop works: remove the old laptop entries on the server's Syncthing page,
+    in the Tailscale admin page and in Mullvad's device list, and revoke old canonfig followers (step 9).
 
 When done, give the user a short list: what's finished, and anything still for them.
