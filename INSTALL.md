@@ -1,6 +1,7 @@
 # Installing on the ZBook
 
-This wipes `/dev/nvme0n1`.
+This wipes `/dev/nvme0n1`. To try it first, install to the external PortableSSD instead
+(`install-from-iso /dev/sda`, see below): Omarchy stays on the internal disk, and F9 picks which one boots.
 
 ## 1. Before, on the old system
 
@@ -31,6 +32,11 @@ reboot
 ```
 
 It asks you to type `WIPE`, then the disk password, then your login password.
+
+**Trying it on the external SSD:** plug in the PortableSSD, check with `lsblk` that it's `sda` (`usb`, ~930G),
+and run `bash /tmp/dotfiles/bin/install-from-iso /dev/sda`. It wipes only the SSD. With the SSD plugged in the
+laptop boots NixOS; without it, Omarchy. To move to the internal disk later, run the installer again without
+`/dev/sda` and redo the first-boot steps.
 
 ## 3. First boot
 

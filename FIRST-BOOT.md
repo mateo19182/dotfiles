@@ -24,8 +24,7 @@ Ask before every `sudo` command, and before any push. Skip a step that's already
    (Secret Service). Check: `echo ok | secret-tool store --label=check check 1 && secret-tool lookup check 1 && secret-tool clear check 1` prints `ok`.
 9. **Agent config.** canonfig Follower of `m19182-server` (README of the `agents-config` repo).
    `canonfig doctor --no-input`: credentials must pass (needs KeePassXC unlocked from step 8).
-   On the server, revoke the old Omarchy laptop (`canonfig source revoke follower-6cd02c4f696e031f476bfa5e5e269b1b`;
-   already gone if it ran `canonfig follower unenroll` before the wipe), then create an invitation:
+   On the server, create an invitation (leave the Omarchy laptop's follower alone while it still boots):
    `canonfig source invite --endpoint https://m19182.tail5196fa.ts.net:17342 --output ~/canonfig-invite --expires 15m --group canonfig:secrets`.
    Copy it here with `scp` (never print it), then `canonfig follower enroll --stdin --name zbook < canonfig-invite`,
    delete the file on both machines, `canonfig sync --plan`, show it, `canonfig sync --apply` after a yes,

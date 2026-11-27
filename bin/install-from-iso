@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Run as root from the NixOS minimal ISO. WIPES /dev/nvme0n1.
+# Run as root from the NixOS minimal ISO. WIPES the target disk (default /dev/nvme0n1).
 #
 #   git clone https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
-#   bash /tmp/dotfiles/bin/install-from-iso
+#   bash /tmp/dotfiles/bin/install-from-iso            # internal disk
+#   bash /tmp/dotfiles/bin/install-from-iso /dev/sda   # external disk instead; the internal one is untouched
 set -euo pipefail
 
 repo=/tmp/dotfiles
+disk=${1:-/dev/nvme0n1}
 user=m19182
 export NIX_CONFIG="experimental-features = nix-command flakes"
 
@@ -15,12 +17,14 @@ export NIX_CONFIG="experimental-features = nix-command flakes"
 echo "== hardware (compare with hosts/zbook/hardware.nix)"
 nixos-generate-config --no-filesystems --show-hardware-config | grep -E 'Modules|kvm' || true
 
-lsblk -o NAME,SIZE,MODEL /dev/nvme0n1
-read -rp "Type WIPE to erase /dev/nvme0n1 and install: " answer </dev/tty
+lsblk -o NAME,SIZE,MODEL,TRAN "$disk"
+read -rp "Type WIPE to erase $disk and install: " answer </dev/tty
 [[ $answer == WIPE ]] || { echo "aborted"; exit 1; }
 
 echo "== partition + encrypt (asks for the disk password)"
-nix run github:nix-community/disko/latest -- --mode destroy,format,mount "$repo/hosts/zbook/disko.nix"
+# The installed system finds its partitions by label, so only disko needs the device path.
+sed "s|/dev/nvme0n1|$disk|" "$repo/hosts/zbook/disko.nix" > /tmp/disko.nix
+nix run github:nix-community/disko/latest -- --mode destroy,format,mount /tmp/disko.nix
 
 echo "== install"
 nixos-install --flake "$repo#zbook" --no-root-passwd
