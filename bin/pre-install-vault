@@ -45,6 +45,7 @@ def plan():
     yield "AWS", "AWS VPN Client profile", [HOME / ".config/aws-vpn-client/zepo-aws.ovpn"], {}
     yield "Certs", "google-meet-sso", [HOME / "google-meet-sso-cert.pem", HOME / "google-meet-sso-key.pem"], {}
     yield "Tokens", "tribo .mcp.json", [HOME / "Work/tribo/.mcp.json"], {}
+    yield "Tokens", "linkwarden config", [HOME / ".config/linkwarden/config.env"], {}
     obs = HOME / "Documents/obsidian-19182"
     yield "Obsidian", "github recovery codes", [obs / "github-recovery-codes.txt"], {}
     yield "Obsidian", "keys.export + private.key", [obs / "keys.export", obs / "private.key"], {}

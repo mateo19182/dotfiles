@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run as root from the NixOS minimal ISO. WIPES /dev/nvme0n1.
 #
-#   git clone -b nixos https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
+#   git clone https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
 #   bash /tmp/dotfiles/bin/install-from-iso
 set -euo pipefail
 
@@ -10,7 +10,7 @@ user=m19182
 export NIX_CONFIG="experimental-features = nix-command flakes"
 
 [[ $EUID == 0 ]] || { echo "run as root (sudo -i)"; exit 1; }
-[[ -d $repo ]] || git clone -b nixos https://github.com/mateo19182/dotfiles.git "$repo"
+[[ -d $repo ]] || git clone https://github.com/mateo19182/dotfiles.git "$repo"
 
 echo "== hardware (compare with hosts/zbook/hardware.nix)"
 nixos-generate-config --no-filesystems --show-hardware-config | grep -E 'Modules|kvm' || true

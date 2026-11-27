@@ -1,6 +1,6 @@
 # First boot on the new ZBook (instructions for a coding agent)
 
-NixOS was just installed from this repo (`~/dotfiles`, branch `nixos`). Finish the setup below, in order.
+NixOS was just installed from this repo (`~/dotfiles`). Finish the setup below, in order.
 Run each step, check it worked, and stop to ask the user when a step says **user**.
 Ask before every `sudo` command, and before any push. Skip a step that's already done.
 
@@ -34,7 +34,4 @@ Ask before every `sudo` command, and before any push. Skip a step that's already
    then connect once and finish the SSO login.
 11. **Checks.** `hex status` (model ready), `systemctl --user --failed` and `systemctl --failed` (both empty).
     Report anything that isn't fine.
-12. **Branch.** Ask the user, then: `git -C ~/dotfiles checkout master && git -C ~/dotfiles merge nixos`,
-    and push only after a yes.
-
 When done, give the user a short list: what's finished, and anything still for them.

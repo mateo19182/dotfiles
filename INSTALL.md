@@ -8,7 +8,7 @@ Push any repo work you care about, then put keys, tokens and untracked `.env` fi
 file in `~/Documents/misc` (synced to the server by Syncthing):
 
 ```bash
-git -C ~/dotfiles show origin/nixos:bin/pre-install-vault > /tmp/pre-install-vault
+git -C ~/dotfiles show origin/master:bin/pre-install-vault > /tmp/pre-install-vault
 uv run --script /tmp/pre-install-vault
 ```
 
@@ -25,7 +25,7 @@ Boot the USB (F9 for the HP boot menu):
 ```bash
 sudo -i
 nmcli device wifi connect "<ssid>" password "<password>"
-git clone -b nixos https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
+git clone https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
 bash /tmp/dotfiles/bin/install-from-iso
 reboot
 ```
