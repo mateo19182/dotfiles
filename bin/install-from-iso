@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Run as root from the NixOS minimal ISO. WIPES the target disk (default /dev/nvme0n1).
+# Run as root from the NixOS minimal ISO. WIPES the target disk (default /dev/nvme0n1),
+# or RESUMEs an install on it that stopped partway.
 #
 #   git clone https://github.com/mateo19182/dotfiles.git /tmp/dotfiles
 #   bash /tmp/dotfiles/bin/install-from-iso            # internal disk
 #   bash /tmp/dotfiles/bin/install-from-iso /dev/sda   # external disk instead; the internal one is untouched
 set -euo pipefail
+trap 'echo; echo "!!! INSTALL FAILED (see the error above). Run this script again and type RESUME."' ERR
 
 repo=/tmp/dotfiles
 disk=${1:-/dev/nvme0n1}
@@ -18,23 +20,29 @@ echo "== hardware (compare with hosts/zbook/hardware.nix)"
 nixos-generate-config --no-filesystems --show-hardware-config | grep -E 'Modules|kvm' || true
 
 lsblk -o NAME,SIZE,MODEL,TRAN "$disk"
-read -rp "Type WIPE to erase $disk and install: " answer </dev/tty
-[[ $answer == WIPE ]] || { echo "aborted"; exit 1; }
+read -rp "Type WIPE to erase $disk and install, or RESUME to finish an install that stopped: " answer </dev/tty
+case $answer in
+  WIPE) mode=destroy,format,mount ;;
+  RESUME) mode=mount ;;
+  *) echo "aborted"; exit 1 ;;
+esac
 
-echo "== partition + encrypt (asks for the disk password)"
+echo "== disk (asks for the disk password)"
 # The installed system finds its partitions by label, so only disko needs the device path.
 sed "s|/dev/nvme0n1|$disk|" "$repo/hosts/zbook/disko.nix" > /tmp/disko.nix
-nix run github:nix-community/disko/latest -- --mode destroy,format,mount /tmp/disko.nix
+nix run github:nix-community/disko/latest -- --mode "$mode" /tmp/disko.nix
 
-echo "== install"
-nixos-install --flake "$repo#zbook" --no-root-passwd
+echo "== install (log: /root/install.log on the new system)"
+mkdir -p /mnt/root
+nixos-install --flake "$repo#zbook" --no-root-passwd 2>&1 | tee /mnt/root/install.log
 
 echo "== repo into place for home-manager's links"
 install -d -m 700 "/mnt/home/$user"
+rm -rf "/mnt/home/$user/dotfiles"
 cp -a "$repo" "/mnt/home/$user/dotfiles"
 nixos-enter --root /mnt -c "chown -R $user:users /home/$user"
 
 echo "== your login/sudo password"
 nixos-enter --root /mnt -c "passwd $user" </dev/tty
 
-echo "Done. Reboot; INSTALL.md has the first-boot steps."
+echo "=== ALL DONE. Type reboot. ==="
