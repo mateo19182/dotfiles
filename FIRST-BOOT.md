@@ -22,11 +22,14 @@ Ask before every `sudo` command, and before any push. Skip a step that's already
    then run `vault-restore` again so their `.env` files come back. It lists any that still wait for a folder.
 8. **KeePassXC.** **User:** click Unlock (no password), then Database → Database Settings → Secret Service
    → expose the root group, so apps can store passwords.
-9. **Agent config.** `git clone git@github.com:mateo19182/agents-config.git ~/.canonfig`, then
-   `canonfig doctor --no-input` (credentials must pass). **User:** run `canonfig secrets set huly-mcp-authorization`
-   and paste `Bearer <Huly MCP token>` (hidden input). Then `canonfig sync --plan`, show the plan, and
-   `canonfig sync --apply` after a yes. Each agent signs in to Executor the first time it uses it.
-   If the server is already the canonfig Source, enroll as a Follower instead (see `~/.canonfig/README.md`).
+9. **Agent config.** canonfig Follower of `m19182-server` (README of the `agents-config` repo).
+   `canonfig doctor --no-input`: credentials must pass (needs KeePassXC unlocked from step 8).
+   On the server, revoke the old Omarchy laptop (`canonfig source revoke follower-6cd02c4f696e031f476bfa5e5e269b1b`;
+   already gone if it ran `canonfig follower unenroll` before the wipe), then create an invitation:
+   `canonfig source invite --endpoint https://m19182.tail5196fa.ts.net:17342 --output ~/canonfig-invite --expires 15m --group canonfig:secrets`.
+   Copy it here with `scp` (never print it), then `canonfig follower enroll --stdin --name zbook < canonfig-invite`,
+   delete the file on both machines, `canonfig sync --plan`, show it, `canonfig sync --apply` after a yes,
+   and `canonfig schedule set daily@09:00`. Each agent signs in to Executor the first time it uses it.
 10. **AWS VPN Client.** **User:** File → Manage Profiles → Add `~/.config/aws-vpn-client/zepo-aws.ovpn`,
    then connect once and finish the SSO login.
 11. **Checks.** `hex status` (model ready), `systemctl --user --failed` and `systemctl --failed` (both empty).
