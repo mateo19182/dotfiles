@@ -97,6 +97,16 @@ in
 
   dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-dark";
 
+  # T3 Code ships only the `t3` CLI. It runs a local server and opens itself, already paired,
+  # in the browser. Run it in a terminal window: closing the window stops the server.
+  xdg.desktopEntries.t3code = {
+    name = "T3 Code";
+    exec = "ghostty --title=\"T3 Code\" --working-directory=home -e t3";
+    icon = "utilities-terminal";
+    terminal = false;
+    categories = [ "Development" ];
+  };
+
   home.pointerCursor = {
     enable = true;
     name = "Adwaita";
