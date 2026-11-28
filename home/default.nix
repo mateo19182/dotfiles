@@ -93,7 +93,6 @@ in
       # Coding agents, updated daily by numtide.
       agents.claude-code
       agents.codex
-      agents.opencode
       agents.amp
       agents.cursor-agent
       agents.pi
