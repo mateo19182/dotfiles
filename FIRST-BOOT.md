@@ -20,10 +20,10 @@ Ask before every `sudo` command, and before any push. Skip a step that's already
    (asks for the account number).
 7. **Repos.** **User:** say which repos to clone into `~/Work/{zepo,tribo,personal}`. Clone them with SSH URLs,
    then run `vault-restore` again so their `.env` files come back. It lists any that still wait for a folder.
-8. **KeePassXC.** **User:** click Unlock (no password). The vault already shares its root group with apps
-   (Secret Service). Check: `echo ok | secret-tool store --label=check check 1 && secret-tool lookup check 1 && secret-tool clear check 1` prints `ok`.
+8. **Keyring.** Apps keep secrets in GNOME Keyring. The first app that stores one asks for a password for the new
+   keyring: **user** leaves it empty (twice) so it opens by itself at login. Check: `echo ok | secret-tool store --label=check check 1 && secret-tool lookup check 1 && secret-tool clear check 1` prints `ok`.
 9. **Agent config.** canonfig Follower of `m19182-server` (README of the `agents-config` repo).
-   `canonfig doctor --no-input`: credentials must pass (needs KeePassXC unlocked from step 8).
+   `canonfig doctor --no-input`: credentials must pass (needs the keyring from step 8).
    On the server, `canonfig source list`: revoke any older `zbook`/laptop follower the user no longer boots, then create an invitation:
    `canonfig source invite --endpoint https://m19182.tail5196fa.ts.net:17342 --output ~/canonfig-invite --expires 15m --group canonfig:secrets`.
    Copy it here with `scp` (never print it), then `canonfig follower enroll --stdin --name zbook < canonfig-invite`,

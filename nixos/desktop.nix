@@ -42,6 +42,13 @@
   # Noctalia's lock screen authenticates against the stock `login` PAM service.
   security.polkit.enable = true;
 
+  # Secret Service for apps (Chrome, Electron, gh, canonfig). Its login keyring has an empty
+  # password, so it opens by itself at login (autologin gives PAM no password to unlock with).
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.greetd.enableGnomeKeyring = true;
+  # SSH keys stay with home-manager's ssh-agent.
+  services.gnome.gcr-ssh-agent.enable = false;
+
   services = {
     gvfs.enable = true;
     udisks2.enable = true;

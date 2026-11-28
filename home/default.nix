@@ -11,7 +11,7 @@ let
   # Live links into the repo: edits apply without a rebuild.
   link = path: config.lib.file.mkOutOfStoreSymlink "${user.dotfiles}/${path}";
   # Electron doesn't recognise Hyprland, so it stores secrets as plain text instead of in the
-  # Secret Service (KeePassXC). The flag makes it use the Secret Service.
+  # Secret Service (GNOME Keyring). The flag makes it use the Secret Service.
   withSecretService =
     pkg: bin:
     pkgs.symlinkJoin {
@@ -187,21 +187,9 @@ in
 
   programs = {
     home-manager.enable = true;
-    # Password store for apps (Secret Service) and SSH keys; unlocked once after login.
-    keepassxc = {
-      enable = true;
-      autostart = true;
-      settings = {
-        General.MinimizeAfterUnlock = true;
-        GUI = {
-          MinimizeOnStartup = true;
-          MinimizeToTray = true;
-          ShowTrayIcon = true;
-        };
-        FdoSecrets.Enabled = true;
-        SSHAgent.Enabled = true;
-      };
-    };
+    # Opens vault.kdbx by hand. Apps keep secrets in GNOME Keyring (nixos/desktop.nix):
+    # as their Secret Service, KeePassXC crashed whenever an app asked while it was locked.
+    keepassxc.enable = true;
     zoxide.enable = true;
     direnv = {
       enable = true;
@@ -226,7 +214,7 @@ in
 
   xdg = {
     enable = true;
-    # uwsm starts these with the session (KeePassXC).
+    # uwsm starts these with the session.
     autostart.enable = true;
     userDirs = {
       enable = true;
