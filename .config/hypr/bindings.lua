@@ -53,14 +53,15 @@ o.bind("ALT + SHIFT + TAB", "Window switcher (reverse)", n("window-switcher hold
 -- Capture
 ---------------------------------------------------------------------------
 local lastScreenshot = o.sh(os.getenv("XDG_RUNTIME_DIR") .. "/noctalia-last-screenshot.png")
-local keepScreenshot = [[tmp=$(mktemp ]] .. lastScreenshot .. [[.XXXXXX) || exit 1
+local editScreenshot = n("annotate --no-pipe-to-command --no-copy-on-close " .. lastScreenshot)
+local captureAndEdit = [[tmp=$(mktemp ]] .. lastScreenshot .. [[.XXXXXX) || exit 1
 trap 'rm -f "$tmp"' EXIT
-cat > "$tmp" && mv -f -- "$tmp" ]] .. lastScreenshot
+cat > "$tmp" && mv -f -- "$tmp" ]] .. lastScreenshot .. " && " .. editScreenshot
 local captureRegion = n("screenshot-region --no-confirm-region --no-annotate --copy-to-clipboard"
-  .. " --no-save-to-file --pipe-to-command --pipe-command " .. o.sh(keepScreenshot))
-o.bind("PRINT", "Copy screenshot region", captureRegion)
-o.bind("SUPER + SHIFT + Q", "Copy screenshot region", captureRegion)
-o.bind("CTRL + SHIFT + PRINT", "Edit last screenshot", n("annotate --no-pipe-to-command " .. lastScreenshot))
+  .. " --no-save-to-file --pipe-to-command --pipe-command " .. o.sh(captureAndEdit))
+o.bind("PRINT", "Copy and edit screenshot region", captureRegion)
+o.bind("SUPER + SHIFT + Q", "Copy and edit screenshot region", captureRegion)
+o.bind("CTRL + SHIFT + PRINT", "Edit last screenshot", editScreenshot)
 o.bind("SHIFT + PRINT", "Screenshot (full screen)", n("screenshot-fullscreen"))
 o.bind("CTRL + PRINT", "Screenshot (window)", n("screenshot-window"))
 o.bind("ALT + PRINT", "Screen recording", "screenrecord")
