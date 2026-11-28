@@ -43,6 +43,7 @@ in
   ];
 
   programs.hex = {
+    package = pkgs.callPackage ../pkgs/hex-bin.nix { };
     enable = true;
     autostart = true;
     installModel = true;
