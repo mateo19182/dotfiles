@@ -105,7 +105,6 @@ in
 
       # Browsers
       google-chrome
-      chromium
       firefox
 
       # Communication
