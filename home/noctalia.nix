@@ -46,6 +46,8 @@
         # Its first-run wizard would reset the palette choices made here.
         setup_wizard_enabled = false;
         corner_radius_scale = 0;
+        # Own cgroup per app, so restarting Noctalia doesn't kill what it launched.
+        launch_apps_as_systemd_services = true;
         font_family = "JetBrainsMono Nerd Font";
         animation.enabled = false;
         panel = {
