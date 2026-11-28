@@ -15,8 +15,9 @@ function o.noctalia(args)
   return "noctalia msg " .. args
 end
 
+-- Webapps run in the Mateo Chrome profile ("Profile 1").
 function o.webapp(url)
-  return o.launch("google-chrome-stable --app=" .. o.sh(url) .. " --profile-directory=Default")
+  return o.launch("google-chrome-stable --app=" .. o.sh(url) .. " --profile-directory='Profile 1'")
 end
 
 -- Focus the first window whose class or title contains `needle`, else run `command`.
