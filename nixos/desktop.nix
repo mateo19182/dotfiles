@@ -1,5 +1,6 @@
 {
   inputs,
+  lib,
   pkgs,
   user,
   ...
@@ -42,10 +43,12 @@
   # Noctalia's lock screen authenticates against the stock `login` PAM service.
   security.polkit.enable = true;
 
-  # Secret Service for apps (Chrome, Electron, gh, canonfig). Its login keyring has an empty
-  # password, so it opens by itself at login (autologin gives PAM no password to unlock with).
+  # Secret Service for apps (Chrome, Electron, gh, canonfig). One passwordless keyring, the
+  # default, so it is always open under autologin. D-Bus starts the daemon. PAM stays out:
+  # given a password (lock screen), gkr-pam creates a password-protected "login" keyring,
+  # and apps that then miss their keys mint new ones and lose their sessions.
   services.gnome.gnome-keyring.enable = true;
-  security.pam.services.greetd.enableGnomeKeyring = true;
+  security.pam.services.login.enableGnomeKeyring = lib.mkForce false;
   # SSH keys stay with home-manager's ssh-agent.
   services.gnome.gcr-ssh-agent.enable = false;
 
