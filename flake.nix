@@ -28,6 +28,7 @@
     };
 
     llm-agents.url = "github:numtide/llm-agents.nix";
+    nix-flatpak.url = "github:gmodena/nix-flatpak/v0.8.0";
 
     hex = {
       url = "github:anomalyco/hex";

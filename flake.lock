@@ -207,11 +207,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795852257,
-        "narHash": "sha256-bzfa82qn/AFf4MK0c9N3V+uEoqwbVQ2FQMp+J/w7Zc0=",
+        "lastModified": 1795861528,
+        "narHash": "sha256-gEPkuVQzqwaqzVS65k/xDrPO+oXiqsgzEo4Y5CCzmmA=",
         "owner": "anomalyco",
         "repo": "hex",
-        "rev": "e4bea17d000fb847072e726ef6c59603eceb083b",
+        "rev": "74c467621a42b6814d99667b6343342f7c08bfbb",
         "type": "github"
       },
       "original": {
@@ -276,6 +276,22 @@
       "original": {
         "owner": "numtide",
         "repo": "llm-agents.nix",
+        "type": "github"
+      }
+    },
+    "nix-flatpak": {
+      "locked": {
+        "lastModified": 1791644091,
+        "narHash": "sha256-nw4/Nzl13+A45km82FF4rXo9O7fGfXNk98UqyTRozog=",
+        "owner": "gmodena",
+        "repo": "nix-flatpak",
+        "rev": "7c7c1739cf476c2f85642f441f967cd91f479d2c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "gmodena",
+        "ref": "v0.8.0",
+        "repo": "nix-flatpak",
         "type": "github"
       }
     },
@@ -473,6 +489,7 @@
         "hex": "hex",
         "home-manager": "home-manager",
         "llm-agents": "llm-agents",
+        "nix-flatpak": "nix-flatpak",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_3",
         "noctalia": "noctalia",

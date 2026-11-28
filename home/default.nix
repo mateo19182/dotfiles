@@ -26,7 +26,10 @@ in
     ./shell.nix
     ./desktop.nix
     ./webapps.nix
+    inputs.nix-flatpak.homeManagerModules.nix-flatpak
   ];
+
+  services.flatpak.packages = [ "com.stremio.Stremio" ];
 
   home = {
     username = user.name;
@@ -140,7 +143,7 @@ in
       wineWow64Packages.stagingFull
 
       # Network & security
-      rustdesk
+      (callPackage ../pkgs/rustdesk-bin.nix { })
       freerdp
       networkmanagerapplet
       trezor-suite
