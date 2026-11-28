@@ -13,12 +13,9 @@ let
   webapps = {
     Gmail = "https://gmail.com";
     Calendar = "https://calendar.google.com/";
-    "Google Contacts" = "https://contacts.google.com/";
-    "Google Maps" = "https://maps.google.com";
-    "Google Messages" = "https://messages.google.com/web/conversations";
-    "Google Photos" = "https://photos.google.com/";
     WhatsApp = "https://web.whatsapp.com/";
-    ChatGPT = "https://chatgpt.com/";
+    # "Web" keeps it apart from the native ChatGPT app.
+    "ChatGPT Web" = "https://chatgpt.com/";
     Gemini = "https://gemini.google.com/";
     Perplexity = "https://perplexity.ai";
     GitHub = "https://github.com/";
@@ -31,6 +28,7 @@ let
     HyperLiquid = "https://app.hyperliquid.xyz/trade";
     HydraHD = "https://hydrahd.org";
     Linkwarden = "https://links.m19182.dev/";
+    Immich = "https://photos.m19182.dev/";
     Medialib = "https://medialib.m19182.dev/";
     Navidrome = "https://navidrome.m19182.dev/";
     Syncthing = "http://127.0.0.1:8384/";
