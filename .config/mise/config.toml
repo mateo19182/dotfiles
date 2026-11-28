@@ -13,3 +13,5 @@ git-lfs = "latest"
 [settings]
 # Prebuilt binaries over source builds; nix-ld makes them run on NixOS.
 python.compile = false
+# mise defaults to compiling everything on NixOS (node from source takes ~45 min).
+all_compile = false
