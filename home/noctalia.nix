@@ -11,6 +11,20 @@
 {
   imports = [ inputs.noctalia.homeModules.default ];
 
+  # The stock entry (same id) runs `noctalia --daemon`, which only errors while the shell is
+  # already running; Settings is a desktop action the launcher doesn't show.
+  xdg.desktopEntries."dev.noctalia.Noctalia" = {
+    name = "Noctalia Settings";
+    exec = ''sh -c "noctalia msg settings-open || { noctalia --daemon && noctalia msg settings-open; }"'';
+    icon = "noctalia";
+    terminal = false;
+    categories = [
+      "Settings"
+      "DesktopSettings"
+    ];
+    settings.Keywords = "desktop;shell;wayland;settings;noctalia;";
+  };
+
   # Your own palettes: one JSON per file, picked in Settings → Appearance → Theme.
   xdg.configFile."noctalia/palettes".source =
     config.lib.file.mkOutOfStoreSymlink "${user.dotfiles}/.config/noctalia/palettes";
@@ -32,6 +46,8 @@
         # Its first-run wizard would reset the palette choices made here.
         setup_wizard_enabled = false;
         corner_radius_scale = 0;
+        # Own cgroup per app, so restarting Noctalia doesn't kill what it launched.
+        launch_apps_as_systemd_services = true;
         font_family = "JetBrainsMono Nerd Font";
         animation.enabled = false;
         panel = {
