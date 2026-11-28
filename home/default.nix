@@ -10,6 +10,16 @@ let
   agents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
   # Live links into the repo: edits apply without a rebuild.
   link = path: config.lib.file.mkOutOfStoreSymlink "${user.dotfiles}/${path}";
+  # Electron doesn't recognise Hyprland, so it stores secrets as plain text instead of in the
+  # Secret Service (KeePassXC). The flag makes it use the Secret Service.
+  withSecretService =
+    pkg: bin:
+    pkgs.symlinkJoin {
+      inherit (pkg) name;
+      paths = [ pkg ];
+      nativeBuildInputs = [ pkgs.makeWrapper ];
+      postBuild = "wrapProgram $out/bin/${bin} --add-flags --password-store=gnome-libsecret";
+    };
 in
 {
   imports = [
@@ -84,7 +94,8 @@ in
       agents.amp
       agents.cursor-agent
       agents.pi
-      agents.t3code
+      agents.t3code # `t3` CLI, for the terminal and remote use
+      (withSecretService agents.t3code-desktop "t3code-desktop")
 
       # Terminals
       ghostty
@@ -101,7 +112,7 @@ in
       discord
 
       # AI apps
-      agents.claude-desktop
+      (withSecretService agents.claude-desktop "claude-desktop")
       chatgpt
       lmstudio
 
